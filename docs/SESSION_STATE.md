@@ -74,48 +74,34 @@
 ✅ `PATCH /api/projects/:project_id/budget`
 ✅ `GET /api/search`
 
-## MUST DO BEFORE DEPLOY
+## Deployment status
 
-1. On a network without SSL interception, run:
-   `npm install @supabase/ssr`
-   Then delete `types/supabase-ssr.d.ts` (the shim).
+- App is live at `https://ethosdashboard.vercel.app`
+- Google OAuth working
+- Supabase connected
+- JWT hook working (`custom_access_token_hook` registered)
+- Auth callback route working
 
-2. Set all environment variables in Vercel:
-   - `NEXT_PUBLIC_SUPABASE_URL`
-   - `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - `SUPABASE_SERVICE_ROLE_KEY`
-   - `SLACK_BOT_TOKEN`
-   - `SLACK_SIGNING_SECRET`
-   - `SLACK_CLIENT_ID`
-   - `SLACK_CLIENT_SECRET`
-   - `OPENSIGN_WEBHOOK_SECRET`
-   - `OPENSIGN_WAIVER_TEMPLATE_ID`
-   - `OPENSIGN_CONSENT_TEMPLATE_ID`
-   - `RESEND_API_KEY`
-   - `RESEND_FROM_ADDRESS` (confirm with Ethos - likely `info@ethossustainability.org`)
-   - `GOOGLE_DRIVE_CLIENT_ID`
-   - `GOOGLE_DRIVE_CLIENT_SECRET`
+## Confirmed working
 
-3. Register JWT hook in Supabase Dashboard:
-   Authentication -> Hooks -> Custom Access Token -> set to `public.custom_access_token_hook`
+- Login with Google
+- Home page with metrics, name, chapter
+- Sidebar navigation
+- Account page with sign out
 
-4. Run all 28 SQL migrations in Supabase SQL editor in order (`000` through `027`).
+## Known remaining issues
 
-5. In Supabase, manually set `org_settings` values:
-   - `slack_invite_link`: your Ethos workspace invite URL
-   - `slack_announcements_channel_id`: the `#announcements` Slack channel ID
+- Board Panel not showing (`org_role_id` not `3` in JWT for current user - needs fresh login after fixing user record in Supabase)
+- Notification delivery not wired
+- OpenSign webhook header unverified
+- `@dnd-kit` not installed (kanban drag deferred)
+- `types/supabase-ssr.d.ts` shim still present (real package installed on Vercel, shim only affects local dev)
 
-6. Create OpenSign document templates for:
-   - Ethos liability waiver
-   - Parental consent form
-   Then set `OPENSIGN_WAIVER_TEMPLATE_ID` and `OPENSIGN_CONSENT_TEMPLATE_ID` in Vercel env vars.
+## Manual setup still needed
 
-7. Install `@dnd-kit` after npm is restored for kanban drag-and-drop:
-   `npm install @dnd-kit/core @dnd-kit/sortable`
-
-## KNOWN REMAINING CODE GAPS
-
-- Notification delivery not wired (records inserted but no actual email/Slack sends triggered)
-- OpenSign webhook header name unverified against real OpenSign docs
-- Kanban drag-and-drop deferred pending `@dnd-kit` install
-- `requireUser` helper not extracted (low priority)
+- Set `org_settings.slack_invite_link` in Supabase
+- Set `org_settings.slack_announcements_channel_id` in Supabase
+- Create OpenSign document templates
+- Set `OPENSIGN_WAIVER_TEMPLATE_ID` env var in Vercel
+- Set `OPENSIGN_CONSENT_TEMPLATE_ID` env var in Vercel
+- Confirm `RESEND_FROM_ADDRESS` is correct
