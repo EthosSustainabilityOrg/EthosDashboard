@@ -58,6 +58,10 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
   const accessToken = session?.access_token ?? '';
 
   const decodedRoleId = decodeRoleId(accessToken);
+  console.log('Access token present:', !!accessToken);
+  console.log('Decoded role ID:', decodedRoleId);
+  console.log('Raw token payload:', accessToken ? JSON.parse(atob(accessToken.split('.')[1])) : 'no token');
+
   const orgRoleId = decodedRoleId === 2 || decodedRoleId === 3 ? decodedRoleId : 1;
 
   const [{ data }, unresolvedLogResult] = await Promise.all([
