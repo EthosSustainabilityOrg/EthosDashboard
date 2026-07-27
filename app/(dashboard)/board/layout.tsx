@@ -3,10 +3,15 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createServerClient } from '@supabase/ssr';
 import { BoardSectionNav } from '@/components/board/BoardSectionNav';
-import { decodeRoleId } from '@/lib/decode-role';
 
 type BoardLayoutProps = {
   children: React.ReactNode;
+};
+
+type CookieToSet = {
+  name: string;
+  value: string;
+  options?: object;
 };
 
 export default async function BoardLayout({ children }: BoardLayoutProps) {
@@ -20,24 +25,33 @@ export default async function BoardLayout({ children }: BoardLayoutProps) {
         getAll() {
           return cookieStore.getAll();
         },
-        setAll() {
-          return;
+        setAll(cookiesToSet: CookieToSet[]) {
+          try {
+            cookiesToSet.forEach(({ name, value, options }) =>
+              cookieStore.set(name, value, options)
+            );
+          } catch {}
         },
       },
     },
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!authUser || authError) {
     redirect('/login');
   }
 
-  const orgRoleId = decodeRoleId(session.access_token);
+  const { data: boardUser } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', authUser.id)
+    .single();
 
-  if (orgRoleId !== 3) {
+  if (boardUser?.org_role_id !== 3) {
     redirect('/home');
   }
 
