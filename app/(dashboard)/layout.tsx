@@ -46,8 +46,6 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     data: { user: authUser },
     error: authError,
   } = await supabase.auth.getUser();
-  console.log('Dashboard layout - user:', authUser?.email ?? 'null', 'error:', authError?.message ?? 'none');
-
   if (!authUser || authError) {
     redirect('/login');
   }
