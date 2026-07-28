@@ -75,6 +75,13 @@ type FilesResponse = {
   per_page: number;
 };
 
+type PendingApplicationsResponse = {
+  applications: unknown[];
+  total: number;
+  page: number;
+  per_page: number;
+};
+
 type ProjectOwnerRow = {
   created_by: string;
 };
@@ -135,7 +142,14 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
     Authorization: `Bearer ${session.access_token}`,
   };
 
-  const [projectResponse, updatesResponse, tasksResponse, filesResponse, ownerResult] = await Promise.all([
+  const [
+    projectResponse,
+    updatesResponse,
+    tasksResponse,
+    filesResponse,
+    pendingResponse,
+    ownerResult,
+  ] = await Promise.all([
     fetch(`${protocol}://${host}/api/projects/${projectId}`, {
       headers: authHeaders,
       cache: 'no-store',
@@ -149,6 +163,10 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       cache: 'no-store',
     }),
     fetch(`${protocol}://${host}/api/files?project_id=${projectId}&per_page=100`, {
+      headers: authHeaders,
+      cache: 'no-store',
+    }),
+    fetch(`${protocol}://${host}/api/applications?project_id=${projectId}&status=Pending&per_page=1`, {
       headers: authHeaders,
       cache: 'no-store',
     }),
@@ -178,6 +196,10 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   const filesBody = filesResponse.ok
     ? ((await filesResponse.json()) as ApiResponse<FilesResponse>)
     : null;
+  const pendingBody = pendingResponse.ok
+    ? ((await pendingResponse.json()) as ApiResponse<PendingApplicationsResponse>)
+    : null;
+  const pendingCount = pendingBody?.data?.total ?? 0;
 
   const owner = ownerResult.data as ProjectOwnerRow | null;
   const project = projectBody.data;
@@ -203,6 +225,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       isLead={isLead}
       isBoard={isBoard}
       isMember={isMember}
+      pendingCount={pendingCount}
     />
   );
 }

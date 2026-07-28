@@ -71,6 +71,7 @@ type ProjectDetailShellProps = {
   isBoard: boolean;
   isMember: boolean;
   currentUserId: string;
+  pendingCount: number;
   tabCounts?: {
     tasks: number;
   };
@@ -97,6 +98,7 @@ export function ProjectDetailShell({
   isBoard,
   isMember,
   currentUserId,
+  pendingCount,
   tabCounts,
 }: ProjectDetailShellProps) {
   const storageKey = `project-tab-${project.project_id}`;
@@ -143,7 +145,7 @@ export function ProjectDetailShell({
             {canManageProject ? (
               <LeadOverviewActions
                 projectId={project.project_id}
-                pendingCount={project.spots_remaining ?? 0}
+                pendingCount={pendingCount}
                 project={project}
                 shifts={project.shifts}
                 teamMembers={project.team}
