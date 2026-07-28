@@ -11,6 +11,12 @@ type TeamMember = {
   is_lead: boolean;
 };
 
+type FlagVolunteer = {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+};
+
 type OverviewProject = Project & {
   chapter_name: string;
   type_name: string;
@@ -22,7 +28,7 @@ type OverviewTabProps = {
   team: TeamMember[];
   isLead: boolean;
   isBoard: boolean;
-  onFlagVolunteer?: (volunteer: TeamMember) => void;
+  onFlagVolunteer?: (volunteer: FlagVolunteer) => void;
 };
 
 function formatMoney(value: number) {

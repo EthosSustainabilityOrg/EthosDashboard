@@ -35,6 +35,12 @@ type TeamMember = {
   is_lead: boolean;
 };
 
+type FlagVolunteer = {
+  user_id: string;
+  first_name: string;
+  last_name: string;
+};
+
 type ProjectFile = Pick<
   File,
   'file_id' | 'file_name' | 'file_type' | 'drive_url' | 'description' | 'created_at'
@@ -108,7 +114,7 @@ export function ProjectDetailShell({
   const [localFiles, setLocalFiles] = useState<ProjectFileListItem[]>(files);
   const [newTaskSheetOpen, setNewTaskSheetOpen] = useState(false);
   const [addFileSheetOpen, setAddFileSheetOpen] = useState(false);
-  const [flagVolunteer, setFlagVolunteer] = useState<TeamMember | null>(null);
+  const [flagVolunteer, setFlagVolunteer] = useState<FlagVolunteer | null>(null);
 
   useEffect(() => {
     const savedTab = window.sessionStorage.getItem(storageKey);
