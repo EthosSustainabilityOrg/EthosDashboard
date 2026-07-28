@@ -20,21 +20,31 @@ export function ApplicationSettingsStep({
       />
 
       {formData.is_open_call ? (
-        <Select
-          label="Application level"
-          value={formData.open_call_app_level}
-          onChange={(value) =>
-            onChange({
-              open_call_app_level: value as WizardFormData['open_call_app_level'],
-            })
-          }
-          options={[
-            { value: '', label: 'Select level' },
-            { value: 'Full App', label: 'Full App' },
-            { value: 'Mid App', label: 'Mid App' },
-            { value: 'No App', label: 'No App' },
-          ]}
-        />
+        <div>
+          <div className="mb-2 flex items-center gap-2">
+            <span className="text-sm font-semibold text-espresso">Application level</span>
+            <span
+              title={'Full App: applicants complete the full 4-step form\nMid App: applicants complete basics only (2 steps)\nNo App: volunteers can join instantly with one click'}
+              className="flex h-4 w-4 items-center justify-center rounded-full border border-sand text-xs font-bold text-warm-gray"
+            >
+              i
+            </span>
+          </div>
+          <Select
+            value={formData.open_call_app_level}
+            onChange={(value) =>
+              onChange({
+                open_call_app_level: value as WizardFormData['open_call_app_level'],
+              })
+            }
+            options={[
+              { value: '', label: 'Select level' },
+              { value: 'Full App', label: 'Full App' },
+              { value: 'Mid App', label: 'Mid App' },
+              { value: 'No App', label: 'No App' },
+            ]}
+          />
+        </div>
       ) : null}
 
       <div className="rounded-lg border border-sand bg-sand p-4">

@@ -95,7 +95,7 @@ export function RolesStep({ roles, onChange }: RolesStepProps) {
         name="role-description"
       />
 
-      <Button onClick={addRole}>Add Role</Button>
+      <Button onClick={addRole}>Save Role</Button>
     </div>
   );
 }

@@ -297,7 +297,9 @@ export function CreateProjectWizard({
       <section className="rounded-2xl border border-sand bg-cream p-8">
         {renderStep()}
 
-        {publishError ? <p className="mt-6 text-sm text-red-500">{publishError}</p> : null}
+        {currentStep < 6 && publishError ? (
+          <p className="mt-6 text-sm text-red-500">{publishError}</p>
+        ) : null}
 
         <div className="mt-8 flex items-center justify-between">
           {currentStep > 1 ? (
@@ -313,14 +315,7 @@ export function CreateProjectWizard({
               Next
             </Button>
           ) : (
-            <div className="flex gap-3">
-              <Button variant="secondary" onClick={saveDraft} disabled={isSaving}>
-                {isSaving ? 'Saving...' : 'Save Draft'}
-              </Button>
-              <Button onClick={publishProject} disabled={isSaving}>
-                {isSaving ? 'Publishing...' : 'Publish Project'}
-              </Button>
-            </div>
+            <span />
           )}
         </div>
       </section>

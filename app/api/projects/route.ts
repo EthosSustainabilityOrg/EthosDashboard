@@ -281,16 +281,21 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<P
       );
     }
     
-    const claims = extractClaims(token);
-    if (!claims || !claims.sub) {
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id, chapter_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (userError || !userData) {
       return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
+        { data: null, error: { code: 'UNAUTHORIZED', message: 'User profile not found' } },
         { status: 401 }
       );
     }
 
     // 2. Enforce Scope: Project Lead or Board
-    if (claims.org_role_id !== 2 && claims.org_role_id !== 3) {
+    if (userData.org_role_id !== 2 && userData.org_role_id !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Project creation requires Project Lead or Board access' } },
         { status: 403 }
@@ -307,7 +312,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<P
     }
 
     // 4. Enforce Chapter Scope
-    if (claims.org_role_id === 2 && body.chapter_id !== claims.chapter_id) {
+    if (userData.org_role_id === 2 && body.chapter_id !== userData.chapter_id) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Project Leads can only create projects for their own chapter' } },
         { status: 403 }
@@ -343,7 +348,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<P
         is_open_call: body.is_open_call,
         open_call_app_level: body.is_open_call ? body.open_call_app_level : null,
         is_published: false,
-        created_by: claims.sub
+        created_by: user.id
       })
       .select()
       .single();

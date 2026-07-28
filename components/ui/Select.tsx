@@ -1,5 +1,7 @@
 'use client';
 
+import { useEffect, useRef, useState } from 'react';
+
 type SelectOption = {
   value: string;
   label: string;
@@ -27,28 +29,49 @@ export function Select({
   className = '',
 }: SelectProps) {
   const selectId = id ?? name;
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const selectedOption = options.find((option) => option.value === value);
+
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(event.target as Node)
+      ) {
+        setIsOpen(false);
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  function selectOption(nextValue: string) {
+    onChange(nextValue);
+    setIsOpen(false);
+  }
 
   return (
-    <label className={`block ${className}`}>
+    <div ref={containerRef} className={`relative block ${className}`}>
       {label ? (
-        <span className="mb-2 block text-sm font-semibold text-espresso">{label}</span>
+        <label htmlFor={selectId} className="mb-2 block text-sm font-semibold text-espresso">
+          {label}
+        </label>
       ) : null}
 
       <span className="relative block">
-        <select
+        <button
+          type="button"
           id={selectId}
-          name={name}
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
           disabled={disabled}
-          className="h-11 w-full appearance-none rounded-md border border-sand bg-cream px-3 pr-10 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-peach disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={() => setIsOpen((current) => !current)}
+          className="flex h-11 w-full items-center justify-between rounded-md border border-sand bg-cream px-3 pr-10 text-left text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-peach disabled:cursor-not-allowed disabled:opacity-50"
         >
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+          <span className="truncate">{selectedOption?.label ?? 'Select'}</span>
+        </button>
+
+        {name ? <input type="hidden" name={name} value={value} /> : null}
 
         <svg
           aria-hidden="true"
@@ -63,6 +86,39 @@ export function Select({
           />
         </svg>
       </span>
-    </label>
+
+      {isOpen && !disabled ? (
+        <div className="absolute z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-sand bg-cream py-1 shadow-lg">
+          {options.map((option) => {
+            const active = option.value === value;
+            const isSeparator = option.value.startsWith('separator-');
+
+            if (isSeparator) {
+              return (
+                <div
+                  key={option.value}
+                  className="px-3 py-2 text-xs font-semibold uppercase tracking-wide text-warm-gray"
+                >
+                  {option.label.replace(/-/g, '').trim()}
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={option.value}
+                type="button"
+                onClick={() => selectOption(option.value)}
+                className={`block w-full px-3 py-2 text-left text-sm text-espresso transition hover:bg-sand/40 ${
+                  active ? 'bg-peach-light' : ''
+                }`}
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      ) : null}
+    </div>
   );
 }
