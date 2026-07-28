@@ -10,16 +10,6 @@ type EditProjectPageProps = {
   params: Promise<{ project_id: string }>;
 };
 
-function decodeRoleId(accessToken: string) {
-  const payload = accessToken.split('.')[1];
-  if (!payload) return 1;
-
-  const parsed = JSON.parse(atob(payload)) as unknown;
-  if (!parsed || typeof parsed !== 'object' || !('org_role_id' in parsed)) return 1;
-
-  return Number(parsed.org_role_id);
-}
-
 export default async function EditProjectPage({ params }: EditProjectPageProps) {
   const { project_id: projectId } = await params;
   const cookieStore = await cookies();
@@ -40,16 +30,23 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!authUser || authError) {
     redirect('/login');
   }
 
-  const roleId = decodeRoleId(session.access_token);
+  const { data: userData } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', authUser.id)
+    .single();
 
-  if (roleId !== 2 && roleId !== 3) {
+  const orgRoleId = userData?.org_role_id ?? 1;
+
+  if (orgRoleId !== 2 && orgRoleId !== 3) {
     redirect('/home');
   }
 
@@ -73,8 +70,8 @@ export default async function EditProjectPage({ params }: EditProjectPageProps) 
     redirect('/home');
   }
 
-  const isBoard = roleId === 3;
-  const isLead = roleId === 2 && project.created_by === session.user.id;
+  const isBoard = orgRoleId === 3;
+  const isLead = orgRoleId === 2 && project.created_by === authUser.id;
 
   if (!isBoard && !isLead) {
     redirect('/home');

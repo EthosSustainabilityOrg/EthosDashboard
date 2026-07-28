@@ -79,16 +79,6 @@ type ProjectOwnerRow = {
   created_by: string;
 };
 
-function decodeBoardRole(accessToken: string) {
-  const payload = accessToken.split('.')[1];
-  if (!payload) return false;
-
-  const parsed = JSON.parse(atob(payload)) as unknown;
-  if (!parsed || typeof parsed !== 'object' || !('org_role_id' in parsed)) return false;
-
-  return Number(parsed.org_role_id) === 3;
-}
-
 export default async function ProjectDetailPage({ params }: ProjectDetailPageProps) {
   const { project_id: projectId } = await params;
   const cookieStore = await cookies();
@@ -110,12 +100,29 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
   );
 
   const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (!authUser || authError) {
+    redirect('/login');
+  }
+
+  const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session) {
     redirect('/login');
   }
+
+  const { data: userData } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', authUser.id)
+    .single();
+
+  const orgRoleId = userData?.org_role_id ?? 1;
 
   const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
   const host = headerStore.get('host');
@@ -174,9 +181,9 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
 
   const owner = ownerResult.data as ProjectOwnerRow | null;
   const project = projectBody.data;
-  const isBoard = decodeBoardRole(session.access_token);
-  const isLead = owner?.created_by === session.user.id;
-  const isMember = project.team.some((member) => member.user_id === session.user.id);
+  const isBoard = orgRoleId === 3;
+  const isLead = orgRoleId === 2 && owner?.created_by === authUser.id;
+  const isMember = project.team.some((member) => member.user_id === authUser.id);
 
   if (!isBoard && !isLead && !isMember) {
     redirect('/home');
@@ -192,7 +199,7 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       }))}
       files={filesBody?.data?.files ?? []}
       updates={updatesBody?.data?.updates ?? []}
-      currentUserId={session.user.id}
+      currentUserId={authUser.id}
       isLead={isLead}
       isBoard={isBoard}
       isMember={isMember}

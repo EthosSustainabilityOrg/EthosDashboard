@@ -97,10 +97,15 @@ export async function GET(
         { status: 401 }
       );
     }
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
+    const { data: userData, error: userError } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id, chapter_id')
+      .eq('user_id', user.id)
+      .single();
+
+    if (userError || !userData) {
       return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
+        { data: null, error: { code: 'UNAUTHORIZED', message: 'User profile not found' } },
         { status: 401 }
       );
     }
@@ -144,7 +149,7 @@ export async function GET(
     }
 
     // 3. Enforce Visibility Scope
-    if (claims.org_role_id !== 3) {
+    if (userData.org_role_id !== 3) {
       if (p.closed_at !== null) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Project is closed' } },
@@ -152,9 +157,12 @@ export async function GET(
         );
       }
       
-      if (claims.org_role_id === 2) {
+      if (userData.org_role_id === 2) {
         // Project Lead
-        const canView = p.chapter_id === claims.chapter_id || p.is_open_call || p.created_by === claims.sub;
+        const canView =
+          p.chapter_id === userData.chapter_id ||
+          p.is_open_call ||
+          p.created_by === user.id;
         if (!canView) {
           return NextResponse.json(
             { data: null, error: { code: 'FORBIDDEN', message: 'Cannot view this project' } },
@@ -162,7 +170,7 @@ export async function GET(
           );
         }
         // If not published, only the creator can view
-        if (!p.is_published && p.created_by !== claims.sub) {
+        if (!p.is_published && p.created_by !== user.id) {
           return NextResponse.json(
             { data: null, error: { code: 'FORBIDDEN', message: 'Cannot view unpublished projects' } },
             { status: 403 }
@@ -170,7 +178,9 @@ export async function GET(
         }
       } else {
         // Member
-        const canView = (p.chapter_id === claims.chapter_id && p.is_published) || (p.is_open_call && p.is_published);
+        const canView =
+          (p.chapter_id === userData.chapter_id && p.is_published) ||
+          (p.is_open_call && p.is_published);
         if (!canView) {
           return NextResponse.json(
             { data: null, error: { code: 'FORBIDDEN', message: 'Cannot view this project' } },

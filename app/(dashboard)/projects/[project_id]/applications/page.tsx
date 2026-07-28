@@ -34,17 +34,6 @@ type ProjectDetailResponse = {
   project_roles: ProjectRole[];
 };
 
-function decodeRoleId(accessToken: string) {
-  const payload = accessToken.split('.')[1];
-  if (!payload) return null;
-
-  const parsed = JSON.parse(atob(payload)) as unknown;
-  if (!parsed || typeof parsed !== 'object' || !('org_role_id' in parsed)) return null;
-
-  const roleId = Number(parsed.org_role_id);
-  return Number.isNaN(roleId) ? null : roleId;
-}
-
 export default async function ProjectApplicationsPage({ params }: ApplicationsPageProps) {
   const { project_id: projectId } = await params;
   const cookieStore = await cookies();
@@ -66,6 +55,15 @@ export default async function ProjectApplicationsPage({ params }: ApplicationsPa
   );
 
   const {
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
+
+  if (!authUser || authError) {
+    redirect('/login');
+  }
+
+  const {
     data: { session },
   } = await supabase.auth.getSession();
 
@@ -73,9 +71,15 @@ export default async function ProjectApplicationsPage({ params }: ApplicationsPa
     redirect('/login');
   }
 
-  const roleId = decodeRoleId(session.access_token);
+  const { data: userData } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', authUser.id)
+    .single();
 
-  if (roleId !== 2 && roleId !== 3) {
+  const orgRoleId = userData?.org_role_id ?? 1;
+
+  if (orgRoleId !== 2 && orgRoleId !== 3) {
     redirect('/home');
   }
 
@@ -87,7 +91,7 @@ export default async function ProjectApplicationsPage({ params }: ApplicationsPa
 
   const project = projectData as ProjectOwner | null;
 
-  if (!project || (roleId === 2 && project.created_by !== session.user.id)) {
+  if (!project || (orgRoleId === 2 && project.created_by !== authUser.id)) {
     redirect('/home');
   }
 
