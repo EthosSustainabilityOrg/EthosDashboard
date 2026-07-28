@@ -25,7 +25,7 @@ export function ApplicationSettingsStep({
             <span className="text-sm font-semibold text-espresso">Application level</span>
             <span
               title={'Full App: applicants complete the full 4-step form\nMid App: applicants complete basics only (2 steps)\nNo App: volunteers can join instantly with one click'}
-              className="flex h-4 w-4 items-center justify-center rounded-full border border-sand text-xs font-bold text-warm-gray"
+              className="flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-sand text-xs font-bold text-warm-gray"
             >
               i
             </span>

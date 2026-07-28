@@ -117,7 +117,7 @@ export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {
         name="shift-notes"
       />
 
-      <Button onClick={addShift}>Add Shift</Button>
+      <Button onClick={addShift}>Save Shift</Button>
     </div>
   );
 }

@@ -1,3 +1,5 @@
+import Image from 'next/image';
+
 type EthosLogoProps = {
   variant?: 'dark' | 'light';
   size?: 'sm' | 'md';
@@ -9,13 +11,22 @@ export function EthosLogo({ variant = 'dark', size = 'md' }: EthosLogoProps) {
       ? 'bg-espresso text-cream'
       : 'bg-cream text-espresso';
 
-  const markClasses = size === 'sm' ? 'h-5 w-5 rounded-md' : 'h-7 w-7 rounded-lg';
+  const markSize = size === 'sm' ? 24 : 32;
+  const markClasses = size === 'sm' ? 'h-6 w-6' : 'h-8 w-8';
   const wordmarkClasses = size === 'sm' ? 'text-sm' : 'text-base';
   const descriptorClasses = size === 'sm' ? 'text-[7px]' : 'text-[9px]';
 
   return (
     <div className={`inline-flex items-center gap-2 ${variantClasses}`}>
-      <div className={`${markClasses} bg-current`} aria-hidden="true" />
+      <Image
+        src="/ethos-logo-insignia.png"
+        alt=""
+        width={markSize}
+        height={markSize}
+        className={`${markClasses} shrink-0 object-contain`}
+        aria-hidden="true"
+        priority
+      />
       <div className="flex flex-col leading-none">
         <span className={`${wordmarkClasses} font-bold lowercase`}>ethos</span>
         <span className={`${descriptorClasses} font-semibold uppercase tracking-widest`}>
