@@ -74,28 +74,86 @@
 ✅ `PATCH /api/projects/:project_id/budget`
 ✅ `GET /api/search`
 
-## Deployment status
+## Deployment
 
-- App is live at `https://ethosdashboard.vercel.app`
-- Google OAuth working
-- Supabase connected
-- JWT hook working (`custom_access_token_hook` registered)
-- Auth callback route working
+- Live at `https://ethosdashboard.vercel.app`
 
-## Confirmed working
+## Completed since last update
 
-- Login with Google
-- Home page with metrics, name, chapter
-- Sidebar navigation
+- Auth callback working (middleware + PKCE client-side fix)
+- Board Panel visible (DB role check instead of JWT)
 - Account page with sign out
+- Project detail page loads for Board users
+- Edit page loads project shifts and roles from server props
+- Edit page mutation calls include authorization headers
+- `POST /api/projects` uses DB role lookup for authorization
+- `GET /api/projects/:id` uses DB role lookup for visibility
+- Sidebar: Recents removed, Projects I Lead renamed, tier dot colors added
+- Pending count bug fixed on project overview
+- Custom Select dropdown component
+- Ethos insignia logo added to sidebar/logo components
+
+## Known remaining JWT role issue
+
+Many API routes still use `claims.org_role_id` for authorization. JWT custom claims are not reliably populated in production, so API route handlers that perform role checks should query `users.org_role_id` from the database after verifying the token.
+
+The following routes have been fixed to use DB role lookup:
+
+- `POST /api/projects`
+- `GET /api/projects/:id`
+
+Routes still using JWT claims for authorization and needing DB role lookup:
+
+- `PATCH /api/projects/:id`
+- `/api/projects/:id/shifts` and `/api/projects/:id/shifts/:shift_id`
+- `/api/projects/:id/roles` and `/api/projects/:id/roles/:project_role_id`
+- `/api/projects/:id/publish`
+- `/api/projects/:id/close`
+- `/api/projects/:id/budget`
+- `/api/applications` (approve, reject, reassign-role)
+- `/api/tasks`
+- `/api/badges/:badge_id/award`
+- `/api/flags`
+- `/api/files` (POST, DELETE)
+- `/api/users/:id/role`
+- All other API routes with `claims.org_role_id` checks
+
+## Pattern for DB role fix
+
+After `extractClaims(token)`, add:
+
+```ts
+const { data: roleData } = await supabaseAdmin
+  .from('users')
+  .select('org_role_id')
+  .eq('user_id', claims.sub)
+  .maybeSingle();
+
+const orgRoleId = roleData?.org_role_id ?? 1;
+```
+
+Then replace `claims.org_role_id` with `orgRoleId` in route-handler authorization checks.
+
+RLS policies still use JWT claims and should remain as-is.
 
 ## Known remaining issues
 
-- Board Panel not showing (`org_role_id` not `3` in JWT for current user - needs fresh login after fixing user record in Supabase)
-- Notification delivery not wired
-- OpenSign webhook header unverified
+- Project delete is not implemented yet (`DELETE /api/projects/:id` does not exist)
+- Wizard shift/role child POSTs need logging and response checks; failures can still be swallowed
+- Notification delivery not wired (records inserted, no email/Slack sends triggered)
+- OpenSign webhook header name unverified against real OpenSign docs
 - `@dnd-kit` not installed (kanban drag deferred)
 - `types/supabase-ssr.d.ts` shim still present (real package installed on Vercel, shim only affects local dev)
+
+## Next priorities
+
+1. Apply DB role fix to remaining API routes
+2. Add project delete flow and `DELETE /api/projects/:id`
+3. Add wizard shift/role save logging and response checks
+4. Wire notification delivery (records exist, no sends)
+5. Test full onboarding flow end to end
+6. Test project creation wizard shifts/roles saving
+7. OpenSign webhook verification (unverified header)
 
 ## Manual setup still needed
 
