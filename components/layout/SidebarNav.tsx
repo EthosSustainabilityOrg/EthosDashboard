@@ -16,6 +16,7 @@ type NavItem = {
   leadOnly?: boolean;
   boardOnly?: boolean;
   isBoardPanel?: boolean;
+  tier?: 'member' | 'lead' | 'board';
 };
 
 const navItems: NavItem[] = [
@@ -28,9 +29,8 @@ const navItems: NavItem[] = [
   { label: 'Directory', href: '/directory' },
   { label: 'Announcements', href: '/announcements' },
   { label: 'Fundraising', href: '/fundraising' },
-  { label: 'Recents', href: '/recents' },
-  { label: 'My Lead Projects', href: '/lead-projects', leadOnly: true },
-  { label: 'Board Panel', href: '/board/overview', boardOnly: true, isBoardPanel: true },
+  { label: 'Projects I Lead', href: '/lead-projects', leadOnly: true, tier: 'lead' },
+  { label: 'Board Panel', href: '/board/overview', boardOnly: true, isBoardPanel: true, tier: 'board' },
 ];
 
 function canShowItem(item: NavItem, orgRoleId: OrgRoleId) {
@@ -42,6 +42,13 @@ function canShowItem(item: NavItem, orgRoleId: OrgRoleId) {
 function isActive(pathname: string, href: string) {
   if (href === '/home') return pathname === href;
   return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+function dotClass(item: NavItem, active: boolean) {
+  if (active) return 'bg-peach';
+  if (item.tier === 'board') return 'bg-cream/50';
+  if (item.tier === 'lead') return 'bg-peach/40';
+  return 'bg-cream/30';
 }
 
 export function SidebarNav({ orgRoleId, unresolvedLogCount }: SidebarNavProps) {
@@ -64,11 +71,7 @@ export function SidebarNav({ orgRoleId, unresolvedLogCount }: SidebarNavProps) {
                   : 'text-cream/70 hover:bg-cream/10 hover:text-cream'
             }`}
           >
-            <span
-              className={`h-3 w-3 rounded-sm ${
-                active ? 'bg-peach' : item.isBoardPanel ? 'bg-cream/50' : 'bg-cream/30'
-              }`}
-            />
+            <span className={`h-3 w-3 rounded-sm ${dotClass(item, active)}`} />
             <span className="min-w-0 flex-1 truncate">{item.label}</span>
 
             {item.isBoardPanel && unresolvedLogCount > 0 ? (

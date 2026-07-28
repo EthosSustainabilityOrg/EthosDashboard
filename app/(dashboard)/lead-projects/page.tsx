@@ -145,9 +145,11 @@ export default async function LeadProjectsPage() {
           </p>
         </div>
 
-        <Link href="/new-project">
-          <Button variant="primary">New Project</Button>
-        </Link>
+        {sortedCards.length > 0 ? (
+          <Link href="/new-project">
+            <Button variant="primary">New Project</Button>
+          </Link>
+        ) : null}
       </header>
 
       {sortedCards.length > 0 ? (
