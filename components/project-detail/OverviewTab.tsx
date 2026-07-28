@@ -22,6 +22,7 @@ type OverviewTabProps = {
   team: TeamMember[];
   isLead: boolean;
   isBoard: boolean;
+  onFlagVolunteer?: (volunteer: TeamMember) => void;
 };
 
 function formatMoney(value: number) {
@@ -38,6 +39,7 @@ export function OverviewTab({
   team,
   isLead,
   isBoard,
+  onFlagVolunteer,
 }: OverviewTabProps) {
   return (
     <div className="space-y-8">
@@ -78,7 +80,11 @@ export function OverviewTab({
           <h2 className="text-lg font-semibold text-espresso">Team</h2>
           <p className="text-sm text-warm-gray">{team.length} members</p>
         </div>
-        <TeamRoster team={team} />
+        <TeamRoster
+          team={team}
+          isLead={isLead || isBoard}
+          onFlagVolunteer={onFlagVolunteer}
+        />
       </section>
     </div>
   );

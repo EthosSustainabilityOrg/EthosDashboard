@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import type { Project } from '@/types/projects';
 import { Button } from '@/components/ui/Button';
@@ -19,6 +20,7 @@ type ProjectHeaderProps = {
   onTabChange: (tab: ProjectDetailTab) => void;
   taskCount: number;
   isLead: boolean;
+  isBoard: boolean;
 };
 
 const tabs: Array<{ id: ProjectDetailTab; label: string }> = [
@@ -41,6 +43,7 @@ export function ProjectHeader({
   onTabChange,
   taskCount,
   isLead,
+  isBoard,
 }: ProjectHeaderProps) {
   const router = useRouter();
   const projectTag = getProjectTag(project);
@@ -52,10 +55,12 @@ export function ProjectHeader({
           ← Back
         </Button>
 
-        {isLead ? (
-          <Button variant="ghost" onClick={() => undefined}>
-            Edit
-          </Button>
+        {isLead || isBoard ? (
+          <Link href={`/projects/${project.project_id}/edit`}>
+            <Button variant="ghost" size="sm">
+              Edit
+            </Button>
+          </Link>
         ) : null}
       </div>
 

@@ -134,6 +134,7 @@ export function ProjectDetailShell({
         onTabChange={setActiveTab}
         taskCount={counts.tasks}
         isLead={isLead}
+        isBoard={isBoard}
       />
 
       <div className="mt-8">
@@ -155,6 +156,7 @@ export function ProjectDetailShell({
               team={project.team}
               isLead={isLead}
               isBoard={isBoard}
+              onFlagVolunteer={canManageProject ? setFlagVolunteer : undefined}
             />
           </>
         ) : null}
