@@ -4,19 +4,8 @@ import { createServerClient } from '@supabase/ssr';
 import type { Chapter } from '@/types/chapters';
 import type { ProjectType } from '@/types/projects';
 import { CreateProjectWizard } from '@/components/lead/project-wizard/CreateProjectWizard';
-import { decodeRoleId } from '@/lib/decode-role';
 
 type ChapterOption = Pick<Chapter, 'chapter_id' | 'name' | 'is_hq' | 'location'>;
-
-function decodeChapterId(accessToken: string) {
-  const payload = accessToken.split('.')[1];
-  if (!payload) return '';
-
-  const parsed = JSON.parse(atob(payload)) as unknown;
-  if (!parsed || typeof parsed !== 'object' || !('chapter_id' in parsed)) return '';
-
-  return String(parsed.chapter_id ?? '');
-}
 
 export default async function NewProjectPage() {
   const cookieStore = await cookies();
@@ -37,17 +26,21 @@ export default async function NewProjectPage() {
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!authUser || authError) {
     redirect('/login');
   }
 
-  const roleId = decodeRoleId(session.access_token);
-  const chapterId = decodeChapterId(session.access_token);
+  const { data: userData } = await supabase
+    .from('users')
+    .select('org_role_id, chapter_id')
+    .eq('user_id', authUser.id)
+    .single();
 
-  if (roleId !== 2 && roleId !== 3) {
+  if (!userData || (userData.org_role_id !== 2 && userData.org_role_id !== 3)) {
     redirect('/home');
   }
 
@@ -67,8 +60,8 @@ export default async function NewProjectPage() {
       <CreateProjectWizard
         chapters={(chaptersData ?? []) as ChapterOption[]}
         projectTypes={(projectTypesData ?? []) as ProjectType[]}
-        isBoard={roleId === 3}
-        currentChapterId={chapterId}
+        isBoard={userData.org_role_id === 3}
+        currentChapterId={userData.chapter_id ?? ''}
       />
     </div>
   );

@@ -24,17 +24,6 @@ type ProjectCardData = {
   isHq: boolean;
 };
 
-function decodeRoleId(accessToken: string) {
-  const payload = accessToken.split('.')[1];
-  if (!payload) return null;
-
-  const parsed = JSON.parse(atob(payload)) as unknown;
-  if (!parsed || typeof parsed !== 'object' || !('org_role_id' in parsed)) return null;
-
-  const roleId = Number(parsed.org_role_id);
-  return Number.isNaN(roleId) ? null : roleId;
-}
-
 function statusRank(project: Project) {
   if (project.closed_at !== null) return 3;
   if (project.is_published) return 1;
@@ -71,23 +60,28 @@ export default async function LeadProjectsPage() {
   );
 
   const {
-    data: { session },
-  } = await supabase.auth.getSession();
+    data: { user: authUser },
+    error: authError,
+  } = await supabase.auth.getUser();
 
-  if (!session) {
+  if (!authUser || authError) {
     redirect('/login');
   }
 
-  const roleId = decodeRoleId(session.access_token);
+  const { data: userData } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', authUser.id)
+    .single();
 
-  if (roleId !== 2 && roleId !== 3) {
+  if (!userData || (userData.org_role_id !== 2 && userData.org_role_id !== 3)) {
     redirect('/home');
   }
 
   const { data: projectsData } = await supabase
     .from('projects')
     .select('*')
-    .eq('created_by', session.user.id);
+    .eq('created_by', authUser.id);
 
   const projects = (projectsData ?? []) as Project[];
 

@@ -61,13 +61,16 @@ export default function AccountPage() {
       const {
         data: { session },
       } = await supabase.auth.getSession();
+      console.log('session present:', !!session?.access_token);
 
       const headers = session?.access_token
         ? { Authorization: `Bearer ${session.access_token}` }
         : undefined;
 
       const response = await fetch('/api/users/me', { headers });
+      console.log('users/me status:', response.status);
       const body = (await response.json()) as ApiResponse<UserMeResponse>;
+      console.log('users/me body:', JSON.stringify(body));
 
       setUser(body.data?.user ?? null);
       setIsLoading(false);

@@ -8,7 +8,6 @@ import type { OrgRoleId } from '@/types/auth';
 import { BoardProfileActions } from '@/components/directory/BoardProfileActions';
 import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
-import { decodeRoleId } from '@/lib/decode-role';
 
 type DirectoryBadge = {
   badge_id: string;
@@ -164,7 +163,13 @@ export default async function DirectoryProfilePage({ params }: DirectoryProfileP
   }
 
   const profile = profileBody.data;
-  const isBoard = decodeRoleId(session.access_token) === 3;
+  const { data: viewerData } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', session.user.id)
+    .single();
+
+  const isBoard = viewerData?.org_role_id === 3;
   const participationBadges = profile.badges.filter(
     (badge) => badge.badge_category === 'Participation',
   );
