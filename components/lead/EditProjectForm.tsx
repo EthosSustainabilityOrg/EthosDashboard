@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import type { OpenCallAppLevel, Project } from '@/types/projects';
 import type { ProjectRole } from '@/types/project-roles';
 import type { Shift } from '@/types/shifts';
@@ -96,6 +97,14 @@ function formatShiftLabel(shift: Shift) {
 
 export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps) {
   const router = useRouter();
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
   const [description, setDescription] = useState(project.description);
   const [location, setLocation] = useState(project.location ?? '');
   const [isVirtual, setIsVirtual] = useState(project.is_virtual);
@@ -123,14 +132,29 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token
+        ? { Authorization: `Bearer ${session.access_token}` }
+        : {}),
+    };
+  }
+
   async function saveProject() {
     setIsSaving(true);
     setMessage(null);
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/projects/${project.project_id}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         description,
         location: isVirtual ? null : location.trim(),
@@ -157,9 +181,11 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
   async function addShift() {
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/projects/${project.project_id}/shifts`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         start_datetime: newShift.start_datetime,
         end_datetime: newShift.end_datetime,
@@ -188,9 +214,11 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
 
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/projects/${project.project_id}/shifts/${shiftId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         start_datetime: draft.start_datetime,
         end_datetime: draft.end_datetime,
@@ -216,9 +244,11 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
   async function addRole() {
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/projects/${project.project_id}/roles`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         role_name: newRole.role_name.trim(),
         description: newRole.description.trim() || null,
@@ -245,9 +275,11 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
 
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/projects/${project.project_id}/roles/${roleId}`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         role_name: draft.role_name.trim(),
         description: draft.description.trim() || null,
@@ -276,7 +308,12 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
         ? `/api/projects/${project.project_id}/shifts/${deleteTarget.id}`
         : `/api/projects/${project.project_id}/roles/${deleteTarget.id}`;
 
-    const response = await fetch(path, { method: 'DELETE' });
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(path, {
+      method: 'DELETE',
+      headers,
+    });
     const body = (await response.json()) as ApiResponse<{ deleted: boolean }>;
 
     if (!response.ok || body.error) {
