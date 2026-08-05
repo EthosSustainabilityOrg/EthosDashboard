@@ -67,8 +67,16 @@ export async function PATCH(
     }
 
     // 3. Enforce Scope: Board or (Project Lead AND created_by = self)
-    if (claims.org_role_id !== 3) {
-      if (claims.org_role_id !== 2 || p.created_by !== claims.sub) {
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    if (orgRoleId !== 3) {
+      if (orgRoleId !== 2 || p.created_by !== claims.sub) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot modify this project' } },
           { status: 403 }
@@ -216,8 +224,16 @@ export async function DELETE(
     }
 
     // 3. Enforce Scope: Board or (Project Lead AND created_by = self)
-    if (claims.org_role_id !== 3) {
-      if (claims.org_role_id !== 2 || p.created_by !== claims.sub) {
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    if (orgRoleId !== 3) {
+      if (orgRoleId !== 2 || p.created_by !== claims.sub) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot modify this project' } },
           { status: 403 }

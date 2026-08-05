@@ -67,9 +67,17 @@ export async function DELETE(
       );
     }
 
-    const isBoard = claims.org_role_id === 3;
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    const isBoard = orgRoleId === 3;
     const isLeadOwnProjectFile =
-      claims.org_role_id === 2 &&
+      orgRoleId === 2 &&
       file.category === 'Project' &&
       file.projects?.created_by === claims.sub;
 

@@ -61,8 +61,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Di
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
     const perPage = Math.min(50, Math.max(1, parseInt(url.searchParams.get('per_page') || '20', 10)));
 
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
     // 4. Non-Board users cannot use the chapter_id filter param
-    if (claims.org_role_id !== 3 && chapterParam) {
+    if (orgRoleId !== 3 && chapterParam) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'chapter_id filter is only available to Board members' } },
         { status: 403 }
@@ -73,7 +81,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Di
     // Non-Board: always locked to own chapter
     // Board: all chapters unless chapterParam is set
     let targetChapterId: string | null = null;
-    if (claims.org_role_id !== 3) {
+    if (orgRoleId !== 3) {
       targetChapterId = claims.chapter_id;
     } else if (chapterParam) {
       targetChapterId = chapterParam;

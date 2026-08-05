@@ -56,7 +56,15 @@ export async function POST(
       );
     }
 
-    if (claims.org_role_id !== 2 && claims.org_role_id !== 3) {
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    if (orgRoleId !== 2 && orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Only Project Leads and Board can award badges' } },
         { status: 403 }
@@ -97,7 +105,7 @@ export async function POST(
       );
     }
 
-    if (claims.org_role_id === 2) {
+    if (orgRoleId === 2) {
       if (badge.badge_category === 'Achievement') {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Project Leads cannot award Achievement badges' } },

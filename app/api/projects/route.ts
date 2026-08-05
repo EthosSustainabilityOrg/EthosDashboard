@@ -71,12 +71,21 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
     // 1. Auth check — optional for this endpoint
     const authHeader = req.headers.get('authorization');
     let claims: JwtClaims | null = null;
+    let orgRoleId: number | null = null;
 
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
       const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
       if (!authError && user) {
         claims = extractClaims(token);
+        if (claims?.sub) {
+          const { data: roleData } = await supabaseAdmin
+            .from('users')
+            .select('org_role_id')
+            .eq('user_id', claims.sub)
+            .maybeSingle();
+          orgRoleId = roleData?.org_role_id ?? 1;
+        }
       }
     }
 
@@ -121,10 +130,10 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
       // Unauthenticated: Published only, never closed
       query = query.is('closed_at', null).eq('is_published', true);
       
-    } else if (claims.org_role_id === 3) {
+    } else if (orgRoleId === 3) {
       // Board: All projects (no closed_at or is_published restrictions)
-      
-    } else if (claims.org_role_id === 2) {
+
+    } else if (orgRoleId === 2) {
       // Project Lead: Never closed. Own chapter published + Open calls published + Own unpublished drafts
       query = query.is('closed_at', null).or(
         `and(chapter_id.eq.${claims.chapter_id},is_published.eq.true),` +

@@ -23,7 +23,16 @@ export async function PATCH(
   const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
   const claims = extractClaims(token);
   if (authError || !user || !claims?.sub) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
-  if (claims.org_role_id !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
+
+  const { data: roleData } = await supabaseAdmin
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', claims.sub)
+    .maybeSingle();
+
+  const orgRoleId = roleData?.org_role_id ?? 1;
+
+  if (orgRoleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
 
   const body: unknown = await req.json().catch(() => null);
   if (!isBudgetInput(body)) return NextResponse.json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'allocated_budget must be a number' } }, { status: 400 });

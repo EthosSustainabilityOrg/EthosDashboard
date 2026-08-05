@@ -42,6 +42,14 @@ export async function PATCH(
       );
     }
 
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
     const { application_id: applicationId } = await params;
 
     // 2. Fetch Application Context
@@ -67,8 +75,8 @@ export async function PATCH(
     // 3. Enforce Scope: Board or (Project Lead AND created_by = self)
     const projectRow = Array.isArray(appData.projects) ? appData.projects[0] : appData.projects;
 
-    if (claims.org_role_id !== 3) {
-      if (claims.org_role_id !== 2 || projectRow?.created_by !== claims.sub) {
+    if (orgRoleId !== 3) {
+      if (orgRoleId !== 2 || projectRow?.created_by !== claims.sub) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot reject applications for this project' } },
           { status: 403 }

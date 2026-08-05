@@ -209,7 +209,15 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<F
       );
     }
 
-    if (claims.org_role_id !== 2 && claims.org_role_id !== 3) {
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    if (orgRoleId !== 2 && orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Only Project Leads and Board can add files' } },
         { status: 403 }
@@ -238,14 +246,14 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<F
       );
     }
 
-    if (body.category === 'Universal' && claims.org_role_id !== 3) {
+    if (body.category === 'Universal' && orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Only Board can add Universal files' } },
         { status: 403 }
       );
     }
 
-    if (body.is_policy === true && claims.org_role_id !== 3) {
+    if (body.is_policy === true && orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Only Board can add policy documents' } },
         { status: 403 }
@@ -274,7 +282,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<F
         );
       }
 
-      if (claims.org_role_id === 2 && project.created_by !== claims.sub) {
+      if (orgRoleId === 2 && project.created_by !== claims.sub) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot add files to this project' } },
           { status: 403 }

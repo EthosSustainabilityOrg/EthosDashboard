@@ -161,6 +161,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ta
       );
     }
 
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
     const searchParams = req.nextUrl.searchParams;
     const projectId = searchParams.get('project_id');
     const assignedTo = searchParams.get('assigned_to');
@@ -191,21 +199,21 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ta
       );
     }
 
-    if (claims.org_role_id === 1 && !projectId) {
+    if (orgRoleId === 1 && !projectId) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Members must provide project_id' } },
         { status: 403 }
       );
     }
 
-    if (claims.org_role_id === 1 && assignedTo && assignedTo !== claims.sub) {
+    if (orgRoleId === 1 && assignedTo && assignedTo !== claims.sub) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Members can only filter assigned_to by themselves' } },
         { status: 403 }
       );
     }
 
-    const authorizedProjectIds = await getAuthorizedProjectIds(claims.sub, claims.org_role_id, projectId);
+    const authorizedProjectIds = await getAuthorizedProjectIds(claims.sub, orgRoleId, projectId);
 
     if (authorizedProjectIds !== null && authorizedProjectIds.length === 0) {
       return NextResponse.json({
@@ -274,7 +282,15 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
       );
     }
 
-    if (claims.org_role_id !== 2 && claims.org_role_id !== 3) {
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    if (orgRoleId !== 2 && orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Only Project Leads and Board can create tasks' } },
         { status: 403 }
@@ -302,7 +318,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
       );
     }
 
-    if (claims.org_role_id === 2 && project.created_by !== claims.sub) {
+    if (orgRoleId === 2 && project.created_by !== claims.sub) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Cannot create tasks for this project' } },
         { status: 403 }

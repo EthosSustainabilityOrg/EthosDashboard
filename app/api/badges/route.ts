@@ -130,7 +130,15 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
       );
     }
 
-    if (claims.org_role_id !== 3) {
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    if (orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Only Board can create badges' } },
         { status: 403 }

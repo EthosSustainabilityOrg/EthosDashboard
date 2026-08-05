@@ -62,6 +62,14 @@ export async function PATCH(
       );
     }
 
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
     const body = parseInput(await req.json().catch(() => null));
     if (!body) {
       return NextResponse.json(
@@ -107,8 +115,8 @@ export async function PATCH(
 
     const project = firstRow(application.projects);
 
-    if (claims.org_role_id !== 3) {
-      if (claims.org_role_id !== 2 || project?.created_by !== claims.sub) {
+    if (orgRoleId !== 3) {
+      if (orgRoleId !== 2 || project?.created_by !== claims.sub) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot reassign roles for this project' } },
           { status: 403 },

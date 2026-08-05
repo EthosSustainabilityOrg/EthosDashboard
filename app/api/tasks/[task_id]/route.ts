@@ -149,8 +149,16 @@ export async function PATCH(
       );
     }
 
-    const isBoard = claims.org_role_id === 3;
-    const isLeadOnProject = claims.org_role_id === 2 && task.projects?.created_by === claims.sub;
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    const isBoard = orgRoleId === 3;
+    const isLeadOnProject = orgRoleId === 2 && task.projects?.created_by === claims.sub;
     const isAssignedMember = task.assigned_to === claims.sub;
 
     if (!isBoard && !isLeadOnProject && !isAssignedMember) {
@@ -276,8 +284,16 @@ export async function DELETE(
       );
     }
 
-    const isBoard = claims.org_role_id === 3;
-    const isLeadOnProject = claims.org_role_id === 2 && task.projects?.created_by === claims.sub;
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    const isBoard = orgRoleId === 3;
+    const isLeadOnProject = orgRoleId === 2 && task.projects?.created_by === claims.sub;
 
     if (!isBoard && !isLeadOnProject) {
       return NextResponse.json(

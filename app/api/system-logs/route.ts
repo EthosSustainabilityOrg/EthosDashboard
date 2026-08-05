@@ -29,7 +29,15 @@ async function requireBoard(req: NextRequest): Promise<boolean> {
   const token = authHeader.split(' ')[1];
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
   const claims = extractClaims(token);
-  return !error && Boolean(user) && claims?.org_role_id === 3;
+  if (error || !user || !claims?.sub) return false;
+
+  const { data: roleData } = await supabaseAdmin
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', claims.sub)
+    .maybeSingle();
+
+  return (roleData?.org_role_id ?? 1) === 3;
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<SystemLogsResponse>>> {

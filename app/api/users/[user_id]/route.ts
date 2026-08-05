@@ -112,7 +112,15 @@ export async function GET(
     }
 
     // 4. Enforce Scope: Non-Board users can only view members of their own chapter
-    if (claims.org_role_id !== 3 && targetUser.chapter_id !== claims.chapter_id) {
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
+    if (orgRoleId !== 3 && targetUser.chapter_id !== claims.chapter_id) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Cannot view members outside your chapter' } },
         { status: 403 }

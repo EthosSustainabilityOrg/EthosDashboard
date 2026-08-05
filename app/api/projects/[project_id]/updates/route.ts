@@ -70,8 +70,16 @@ export async function GET(
     );
   }
 
+  const { data: roleData } = await supabaseAdmin
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', claims.sub)
+    .maybeSingle();
+
+  const orgRoleId = roleData?.org_role_id ?? 1;
+
   const canRead =
-    claims.org_role_id === 3 ||
+    orgRoleId === 3 ||
     project.created_by === claims.sub ||
     await isApprovedMember(claims.sub, projectId);
 

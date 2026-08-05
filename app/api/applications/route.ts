@@ -173,6 +173,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
     if (auth instanceof NextResponse) return auth;
 
     const { claims } = auth;
+
+    const { data: roleData } = await supabaseAdmin
+      .from('users')
+      .select('org_role_id')
+      .eq('user_id', claims.sub)
+      .maybeSingle();
+
+    const orgRoleId = roleData?.org_role_id ?? 1;
+
     const url = new URL(req.url);
     const projectId = url.searchParams.get('project_id');
     const status = url.searchParams.get('status');
@@ -187,7 +196,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
       );
     }
 
-    if (userId && claims.org_role_id !== 3) {
+    if (userId && orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Only Board can filter applications by user_id' } },
         { status: 403 },
@@ -218,9 +227,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
         { count: 'exact' },
       );
 
-    if (claims.org_role_id === 1) {
+    if (orgRoleId === 1) {
       query = query.eq('user_id', claims.sub);
-    } else if (claims.org_role_id === 2) {
+    } else if (orgRoleId === 2) {
       const { data: ownProjects, error: projectsError } = await supabaseAdmin
         .from('projects')
         .select('project_id')

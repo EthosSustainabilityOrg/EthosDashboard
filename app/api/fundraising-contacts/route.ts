@@ -39,7 +39,14 @@ async function requireUser(req: NextRequest): Promise<{ userId: string; roleId: 
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
   const claims = extractClaims(token);
   if (error || !user || !claims?.sub) return null;
-  return { userId: claims.sub, roleId: claims.org_role_id };
+
+  const { data: roleData } = await supabaseAdmin
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', claims.sub)
+    .maybeSingle();
+
+  return { userId: claims.sub, roleId: roleData?.org_role_id ?? 1 };
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<ContactsResponse>>> {
