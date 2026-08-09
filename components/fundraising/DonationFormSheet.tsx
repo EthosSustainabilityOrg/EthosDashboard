@@ -97,8 +97,8 @@ export function DonationFormSheet({ donation, contacts, onClose, onSaved }: Dona
               ...contacts.map((contact) => ({ value: contact.contact_id, label: contact.name })),
             ]}
           />
-          <Input label="Amount" type="number" value={amount} onChange={setAmount} name="donation-amount" />
-          <Input label="Date" type="date" value={donatedAt} onChange={setDonatedAt} name="donation-date" />
+          <Input label="Amount" type="number" value={amount} onChange={setAmount} name="donation-amount" required />
+          <Input label="Date" type="date" value={donatedAt} onChange={setDonatedAt} name="donation-date" required />
           <Textarea label="Notes" value={notes} onChange={setNotes} name="donation-notes" />
 
           {error ? <p className="text-sm text-red-600">{error}</p> : null}

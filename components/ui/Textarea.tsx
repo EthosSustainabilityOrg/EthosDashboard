@@ -9,6 +9,7 @@ type TextareaProps = {
   disabled?: boolean;
   name?: string;
   rows?: number;
+  required?: boolean;
 };
 
 export function Textarea({
@@ -20,13 +21,17 @@ export function Textarea({
   disabled = false,
   name,
   rows = 4,
+  required = false,
 }: TextareaProps) {
   const inputId = name;
 
   return (
     <label className="block">
       {label ? (
-        <span className="mb-2 block text-sm font-semibold text-espresso">{label}</span>
+        <span className="mb-2 block text-sm font-semibold text-espresso">
+          {label}
+          {required ? <span className="ml-1 text-red-500">*</span> : null}
+        </span>
       ) : null}
       <textarea
         id={inputId}

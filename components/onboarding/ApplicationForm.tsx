@@ -194,6 +194,7 @@ export function ApplicationForm({
             value={formData.guardian_name}
             onChange={(value) => updateField('guardian_name', value)}
             placeholder="Parent or guardian"
+            required
           />
           <Input
             label="Guardian email"
@@ -201,6 +202,7 @@ export function ApplicationForm({
             value={formData.guardian_email}
             onChange={(value) => updateField('guardian_email', value)}
             placeholder="Guardian email address"
+            required
           />
           <Input
             label="Guardian phone"
@@ -220,6 +222,7 @@ export function ApplicationForm({
             onChange={(value) => updateField('why_join', value)}
             placeholder="Share what draws you to this project."
             rows={5}
+            required
           />
           <Textarea
             label="Relevant experience"

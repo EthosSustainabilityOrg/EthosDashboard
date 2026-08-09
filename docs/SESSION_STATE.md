@@ -92,31 +92,21 @@
 - Pending count bug fixed on project overview
 - Custom Select dropdown component
 - Ethos insignia logo added to sidebar/logo components
+- All 33 remaining API routes fixed to use DB `org_role_id` lookup instead of JWT claims (commit `e96f103`)
 
-## Known remaining JWT role issue
+## JWT role issue — resolved
 
-Many API routes still use `claims.org_role_id` for authorization. JWT custom claims are not reliably populated in production, so API route handlers that perform role checks should query `users.org_role_id` from the database after verifying the token.
+✅ Complete (2026-08-05) — All API routes now query `users.org_role_id` from the database for authorization instead of reading `claims.org_role_id` from the JWT. JWT custom claims are not reliably populated in production, so role checks must not depend on them.
 
-The following routes have been fixed to use DB role lookup:
+33 route files were fixed in commit `e96f103` (`fix: replace JWT role claims with DB lookups across all API routes`):
 
-- `POST /api/projects`
-- `GET /api/projects/:id`
+- **Inline lookups** (24 files) — each handler fetches `orgRoleId` via `supabaseAdmin` right after auth and uses it in place of `claims.org_role_id`.
+- **Shared `requireUser` helpers** (donations, flags, fundraising-contacts, search) — fixed once in the helper; all callers inherit the fix.
+- **Shared `requireBoard` helpers** (donations/:id, flags/:id/resolve, fundraising-contacts/:id, system-logs, system-logs/:id/resolve) — fixed once in the helper.
 
-Routes still using JWT claims for authorization and needing DB role lookup:
+`tsc --noEmit` passes with zero errors. No remaining `claims.org_role_id` references anywhere in the codebase.
 
-- `PATCH /api/projects/:id`
-- `/api/projects/:id/shifts` and `/api/projects/:id/shifts/:shift_id`
-- `/api/projects/:id/roles` and `/api/projects/:id/roles/:project_role_id`
-- `/api/projects/:id/publish`
-- `/api/projects/:id/close`
-- `/api/projects/:id/budget`
-- `/api/applications` (approve, reject, reassign-role)
-- `/api/tasks`
-- `/api/badges/:badge_id/award`
-- `/api/flags`
-- `/api/files` (POST, DELETE)
-- `/api/users/:id/role`
-- All other API routes with `claims.org_role_id` checks
+`claims.chapter_id` was left untouched — the unreliable-claims issue only affected `org_role_id`.
 
 ## Pattern for DB role fix
 
@@ -147,13 +137,12 @@ RLS policies still use JWT claims and should remain as-is.
 
 ## Next priorities
 
-1. Apply DB role fix to remaining API routes
-2. Add project delete flow and `DELETE /api/projects/:id`
-3. Add wizard shift/role save logging and response checks
-4. Wire notification delivery (records exist, no sends)
-5. Test full onboarding flow end to end
-6. Test project creation wizard shifts/roles saving
-7. OpenSign webhook verification (unverified header)
+1. Add project delete flow and `DELETE /api/projects/:id`
+2. Add wizard shift/role save logging and response checks
+3. Wire notification delivery (records exist, no sends)
+4. Test full onboarding flow end to end
+5. Test project creation wizard shifts/roles saving
+6. OpenSign webhook verification (unverified header)
 
 ## Manual setup still needed
 

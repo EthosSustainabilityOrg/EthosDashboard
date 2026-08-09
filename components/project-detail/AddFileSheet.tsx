@@ -118,13 +118,14 @@ export function AddFileSheet({
           </div>
 
           <div className="space-y-4">
-            <Input label="Google Drive URL" value={driveUrl} onChange={handleDriveUrlChange} name="drive-url" />
-            <Input label="File name" value={fileName} onChange={setFileName} name="file-name" />
+            <Input label="Google Drive URL" value={driveUrl} onChange={handleDriveUrlChange} name="drive-url" required />
+            <Input label="File name" value={fileName} onChange={setFileName} name="file-name" required />
             <Select
               label="File type"
               value={fileType}
               onChange={setFileType}
               name="file-type"
+              required
               options={['PDF', 'Google Doc', 'Sheet', 'Slide', 'Image', 'Other'].map((type) => ({
                 value: type,
                 label: type,

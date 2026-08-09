@@ -11,6 +11,7 @@ type InputProps = {
   name?: string;
   id?: string;
   readOnly?: boolean;
+  required?: boolean;
 };
 
 export function Input({
@@ -24,13 +25,17 @@ export function Input({
   name,
   id,
   readOnly = false,
+  required = false,
 }: InputProps) {
   const inputId = id ?? name;
 
   return (
     <label className="block">
       {label ? (
-        <span className="mb-2 block text-sm font-semibold text-espresso">{label}</span>
+        <span className="mb-2 block text-sm font-semibold text-espresso">
+          {label}
+          {required ? <span className="ml-1 text-red-500">*</span> : null}
+        </span>
       ) : null}
       <input
         id={inputId}

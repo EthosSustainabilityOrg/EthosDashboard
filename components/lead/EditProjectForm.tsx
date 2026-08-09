@@ -350,12 +350,12 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
 
       <section className="space-y-5 rounded-2xl border border-sand bg-cream p-6">
         <h2 className="text-lg font-semibold text-espresso">Editable details</h2>
-        <Textarea label="Description" value={description} onChange={setDescription} name="project-description" />
+        <Textarea label="Description" value={description} onChange={setDescription} name="project-description" required />
         <Toggle checked={isVirtual} onChange={setIsVirtual} label="Virtual project" />
         {!isVirtual ? <Input label="Location" value={location} onChange={setLocation} name="project-location" /> : null}
         <div className="grid gap-4 md:grid-cols-2">
           <Input label="Requested budget" value={requestedBudget} onChange={setRequestedBudget} name="requested-budget" />
-          <Input label="Max volunteers" value={maxApplications} onChange={setMaxApplications} name="max-applications" />
+          <Input label="Max volunteers" value={maxApplications} onChange={setMaxApplications} name="max-applications" required />
         </div>
         <Toggle checked={isOpenCall} onChange={setIsOpenCall} label="Open call" />
         {isOpenCall ? (
@@ -378,7 +378,10 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
               <p className="mb-3 text-sm font-semibold text-warm-gray">{formatShiftLabel(shift)}</p>
               <div className="grid gap-3 md:grid-cols-2">
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-espresso">Start</span>
+                  <span className="mb-2 block text-sm font-semibold text-espresso">
+                    Start
+                    <span className="ml-1 text-red-500">*</span>
+                  </span>
                   <input
                     type="datetime-local"
                     value={draft.start_datetime}
@@ -392,7 +395,10 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
                   />
                 </label>
                 <label className="block">
-                  <span className="mb-2 block text-sm font-semibold text-espresso">End</span>
+                  <span className="mb-2 block text-sm font-semibold text-espresso">
+                    End
+                    <span className="ml-1 text-red-500">*</span>
+                  </span>
                   <input
                     type="datetime-local"
                     value={draft.end_datetime}
@@ -424,6 +430,7 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
                       [shift.shift_id]: { ...draft, capacity: value },
                     }))
                   }
+                  required
                 />
               </div>
               <Textarea
@@ -456,7 +463,10 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
           <h3 className="mb-3 font-semibold text-espresso">Add shift</h3>
           <div className="grid gap-3 md:grid-cols-2">
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-espresso">Start</span>
+              <span className="mb-2 block text-sm font-semibold text-espresso">
+                Start
+                <span className="ml-1 text-red-500">*</span>
+              </span>
               <input
                 type="datetime-local"
                 value={newShift.start_datetime}
@@ -465,7 +475,10 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
               />
             </label>
             <label className="block">
-              <span className="mb-2 block text-sm font-semibold text-espresso">End</span>
+              <span className="mb-2 block text-sm font-semibold text-espresso">
+                End
+                <span className="ml-1 text-red-500">*</span>
+              </span>
               <input
                 type="datetime-local"
                 value={newShift.end_datetime}
@@ -474,7 +487,7 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
               />
             </label>
             <Input label="Location" value={newShift.location} onChange={(value) => setNewShift((current) => ({ ...current, location: value }))} />
-            <Input label="Capacity" value={newShift.capacity} onChange={(value) => setNewShift((current) => ({ ...current, capacity: value }))} />
+            <Input label="Capacity" value={newShift.capacity} onChange={(value) => setNewShift((current) => ({ ...current, capacity: value }))} required />
           </div>
           <Textarea label="Notes" value={newShift.notes} onChange={(value) => setNewShift((current) => ({ ...current, notes: value }))} />
           <Button variant="primary" size="sm" onClick={addShift}>
@@ -490,8 +503,8 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
           return (
             <div key={role.project_role_id} className="rounded-xl border border-sand p-4">
               <div className="grid gap-3 md:grid-cols-2">
-                <Input label="Role name" value={draft.role_name} onChange={(value) => setRoleEdits((current) => ({ ...current, [role.project_role_id]: { ...draft, role_name: value } }))} />
-                <Input label="Capacity" value={draft.capacity} onChange={(value) => setRoleEdits((current) => ({ ...current, [role.project_role_id]: { ...draft, capacity: value } }))} />
+                <Input label="Role name" value={draft.role_name} onChange={(value) => setRoleEdits((current) => ({ ...current, [role.project_role_id]: { ...draft, role_name: value } }))} required />
+                <Input label="Capacity" value={draft.capacity} onChange={(value) => setRoleEdits((current) => ({ ...current, [role.project_role_id]: { ...draft, capacity: value } }))} required />
               </div>
               <Textarea label="Description" value={draft.description} onChange={(value) => setRoleEdits((current) => ({ ...current, [role.project_role_id]: { ...draft, description: value } }))} />
               <div className="mt-4 flex justify-end gap-2">
@@ -509,8 +522,8 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
         <div className="rounded-xl bg-sand/30 p-4">
           <h3 className="mb-3 font-semibold text-espresso">Add role</h3>
           <div className="grid gap-3 md:grid-cols-2">
-            <Input label="Role name" value={newRole.role_name} onChange={(value) => setNewRole((current) => ({ ...current, role_name: value }))} />
-            <Input label="Capacity" value={newRole.capacity} onChange={(value) => setNewRole((current) => ({ ...current, capacity: value }))} />
+            <Input label="Role name" value={newRole.role_name} onChange={(value) => setNewRole((current) => ({ ...current, role_name: value }))} required />
+            <Input label="Capacity" value={newRole.capacity} onChange={(value) => setNewRole((current) => ({ ...current, capacity: value }))} required />
           </div>
           <Textarea label="Description" value={newRole.description} onChange={(value) => setNewRole((current) => ({ ...current, description: value }))} />
           <Button variant="primary" size="sm" onClick={addRole}>

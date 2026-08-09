@@ -91,12 +91,13 @@ export function ContactFormSheet({ contact, onClose, onSaved }: ContactFormSheet
             <button type="button" className="text-2xl leading-none text-warm-gray" onClick={onClose}>x</button>
           </div>
 
-          <Input label="Name" value={name} onChange={setName} name="contact-name" />
+          <Input label="Name" value={name} onChange={setName} name="contact-name" required />
           <Select
             label="Type"
             value={type}
             onChange={(value) => setType(value as ContactType)}
             options={contactTypes.map((item) => ({ value: item, label: item }))}
+            required
           />
           <Input label="Email" type="email" value={email} onChange={setEmail} name="contact-email" />
           <Input label="Phone" type="tel" value={phone} onChange={setPhone} name="contact-phone" />

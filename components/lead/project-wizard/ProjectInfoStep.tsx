@@ -34,12 +34,14 @@ export function ProjectInfoStep({
         onChange={(value) => onChange({ name: value })}
         placeholder="Project name"
         name="name"
+        required
       />
 
       <Select
         label="Project type"
         value={formData.project_type_id ? String(formData.project_type_id) : ''}
         onChange={(value) => onChange({ project_type_id: value ? Number(value) : null })}
+        required
         options={[
           { value: '', label: 'Select a project type' },
           ...standardTypes.map((type) => ({
@@ -80,6 +82,7 @@ export function ProjectInfoStep({
         placeholder="Describe the project and what volunteers will do."
         name="description"
         rows={5}
+        required
       />
 
       <Toggle
@@ -114,6 +117,7 @@ export function ProjectInfoStep({
           onChange={(value) => onChange({ max_applications: value })}
           placeholder="Required"
           name="max_applications"
+          required
         />
       </div>
     </div>

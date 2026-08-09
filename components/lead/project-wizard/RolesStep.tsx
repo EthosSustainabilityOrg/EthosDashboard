@@ -77,6 +77,7 @@ export function RolesStep({ roles, onChange }: RolesStepProps) {
           onChange={(value) => setDraft((current) => ({ ...current, role_name: value }))}
           placeholder="Site Lead"
           name="role-name"
+          required
         />
         <Input
           label="Capacity"
@@ -84,6 +85,7 @@ export function RolesStep({ roles, onChange }: RolesStepProps) {
           value={draft.capacity}
           onChange={(value) => setDraft((current) => ({ ...current, capacity: value }))}
           name="role-capacity"
+          required
         />
       </div>
 

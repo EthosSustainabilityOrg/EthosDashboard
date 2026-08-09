@@ -85,6 +85,7 @@ export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {
           value={draft.start_datetime}
           onChange={(value) => setDraft((current) => ({ ...current, start_datetime: value }))}
           name="shift-start"
+          required
         />
         <Input
           label="End"
@@ -92,6 +93,7 @@ export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {
           value={draft.end_datetime}
           onChange={(value) => setDraft((current) => ({ ...current, end_datetime: value }))}
           name="shift-end"
+          required
         />
         <Input
           label="Location"
@@ -106,6 +108,7 @@ export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {
           value={draft.capacity}
           onChange={(value) => setDraft((current) => ({ ...current, capacity: value }))}
           name="shift-capacity"
+          required
         />
       </div>
 

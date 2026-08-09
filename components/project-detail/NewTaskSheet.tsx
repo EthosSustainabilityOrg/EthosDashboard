@@ -110,7 +110,7 @@ export function NewTaskSheet(props: NewTaskSheetProps) {
           </div>
 
           <div className="space-y-4">
-            <Input label="Title" value={title} onChange={setTitle} name="task-title" />
+            <Input label="Title" value={title} onChange={setTitle} name="task-title" required />
             <Textarea
               label="Description"
               value={description}
