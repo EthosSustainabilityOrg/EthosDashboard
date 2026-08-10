@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import type { Badge, BadgeCategory } from '@/types/badges';
 import type { ManagedBadge } from '@/components/board/badges/BadgeManagement';
 import { Button } from '@/components/ui/Button';
@@ -33,6 +34,26 @@ export function CreateBadgeSheet({ onClose, onCreated, projects }: CreateBadgeSh
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
   async function handleSubmit() {
     if (!name.trim()) {
       setError('Badge name is required.');
@@ -42,9 +63,11 @@ export function CreateBadgeSheet({ onClose, onCreated, projects }: CreateBadgeSh
     setIsSaving(true);
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch('/api/badges', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         badge_category: category,
         project_id: category === 'Participation' ? projectId || null : null,

@@ -9,7 +9,6 @@ import {
   type PolicyDocument,
 } from '@/components/training/PolicyDocumentList';
 import { TrainingOrientation } from '@/components/training/TrainingOrientation';
-import { decodeRoleId } from '@/lib/decode-role';
 
 const emptyProgress: OrientationProgress = {
   welcome: false,
@@ -78,7 +77,14 @@ export default async function TrainingPage() {
   const headersWithAuth = {
     Authorization: `Bearer ${session.access_token}`,
   };
-  const isBoard = decodeRoleId(session.access_token) === 3;
+
+  const { data: viewerData } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+
+  const isBoard = viewerData?.org_role_id === 3;
 
   const [onboardingResponse, acknowledgmentsResponse, filesResponse] = await Promise.all([
     fetch(`${protocol}://${host}/api/onboarding/me`, {

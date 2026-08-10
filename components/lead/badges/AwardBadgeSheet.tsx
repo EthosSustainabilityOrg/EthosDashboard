@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import type { Badge } from '@/types/badges';
 import { Button } from '@/components/ui/Button';
 import { Textarea } from '@/components/ui/Textarea';
@@ -44,6 +45,26 @@ export function AwardBadgeSheet({
   const [isSaving, setIsSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
   useEffect(() => {
     let isMounted = true;
 
@@ -51,7 +72,8 @@ export function AwardBadgeSheet({
       setIsLoading(true);
       setError(null);
 
-      const response = await fetch('/api/badges');
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/badges', { headers });
       const body = (await response.json()) as BadgesResponse;
 
       if (!isMounted) return;
@@ -86,9 +108,11 @@ export function AwardBadgeSheet({
     setIsSaving(true);
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/badges/${selectedBadgeId}/award`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         user_id: volunteer.user_id,
         note: note.trim() || null,

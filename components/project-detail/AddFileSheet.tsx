@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import type { File } from '@/types/files';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -51,6 +52,26 @@ export function AddFileSheet({
   const [isSaving, setIsSaving] = useState(false);
   const category = forceCategory ?? 'Project';
 
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
   function handleDriveUrlChange(value: string) {
     setDriveUrl(value);
     if (!fileName.trim()) {
@@ -72,9 +93,11 @@ export function AddFileSheet({
     setIsSaving(true);
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch('/api/files', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({
         project_id: category === 'Project' ? projectId : null,
         drive_url: driveUrl.trim(),

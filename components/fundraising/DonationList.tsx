@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import type { DonationListItem } from '@/components/fundraising/FundraisingDashboard';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
@@ -37,10 +38,31 @@ export function DonationList({ donations, isBoard, onAdd, onEdit, onDeleted }: D
     [donations],
   );
 
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
   async function confirmDelete() {
     if (!deleteId) return;
 
-    const response = await fetch(`/api/donations/${deleteId}`, { method: 'DELETE' });
+    const headers = await getAuthHeaders();
+    const response = await fetch(`/api/donations/${deleteId}`, { method: 'DELETE', headers });
     const body = (await response.json()) as { error: { message: string } | null };
 
     if (!response.ok || body.error) {

@@ -72,6 +72,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
     const authHeader = req.headers.get('authorization');
     let claims: JwtClaims | null = null;
     let orgRoleId: number | null = null;
+    let chapterId: string | null = null;
 
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.split(' ')[1];
@@ -79,12 +80,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
       if (!authError && user) {
         claims = extractClaims(token);
         if (claims?.sub) {
-          const { data: roleData } = await supabaseAdmin
+          const { data: userData } = await supabaseAdmin
             .from('users')
-            .select('org_role_id')
+            .select('org_role_id, chapter_id')
             .eq('user_id', claims.sub)
             .maybeSingle();
-          orgRoleId = roleData?.org_role_id ?? 1;
+          orgRoleId = userData?.org_role_id ?? 1;
+          chapterId = userData?.chapter_id ?? null;
         }
       }
     }
@@ -124,8 +126,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
       `, { count: 'exact' });
 
     // 4. Enforce Scoping Rules
-    // NOTE: claims.chapter_id and claims.sub come directly from the server-verified JWT.
-    // They must never be replaced with user-supplied query parameters to ensure strict data scoping.
+    // NOTE: chapterId comes from a DB lookup (JWT custom claims are not reliably populated).
+    // claims.sub comes from the server-verified JWT. Neither must be replaced with
+    // user-supplied query parameters, to ensure strict data scoping.
     if (!claims) {
       // Unauthenticated: Published only, never closed
       query = query.is('closed_at', null).eq('is_published', true);
@@ -136,15 +139,15 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
     } else if (orgRoleId === 2) {
       // Project Lead: Never closed. Own chapter published + Open calls published + Own unpublished drafts
       query = query.is('closed_at', null).or(
-        `and(chapter_id.eq.${claims.chapter_id},is_published.eq.true),` +
+        `and(chapter_id.eq.${chapterId},is_published.eq.true),` +
         `and(is_open_call.eq.true,is_published.eq.true),` +
         `and(created_by.eq.${claims.sub},is_published.eq.false)`
       );
-      
+
     } else {
       // Member: Never closed. Own chapter published + Open calls published
       query = query.is('closed_at', null).or(
-        `and(chapter_id.eq.${claims.chapter_id},is_published.eq.true),` +
+        `and(chapter_id.eq.${chapterId},is_published.eq.true),` +
         `and(is_open_call.eq.true,is_published.eq.true)`
       );
     }

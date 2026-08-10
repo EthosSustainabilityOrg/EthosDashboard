@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import type { OrgRoleId } from '@/types/auth';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -40,15 +41,37 @@ export function ChangeRoleSheet({ member, onClose, onRoleChanged }: ChangeRoleSh
   const isBoardMember = member.org_role_id === 3;
   const selectedRoleId = Number(selectedRole);
 
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
   async function handleConfirm() {
     if (selectedRoleId === member.org_role_id || isBoardMember) return;
 
     setIsSaving(true);
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/users/${member.user_id}/role`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ org_role_id: selectedRoleId }),
     });
 

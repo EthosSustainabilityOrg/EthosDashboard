@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
 import type { BudgetProject } from '@/components/board/BudgetRequestsPanel';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -32,6 +33,26 @@ export function BudgetReviewSheet({ project, onClose, onAllocated }: BudgetRevie
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
 
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
   async function handleSubmit() {
     const amount = Number(allocatedAmount);
 
@@ -43,9 +64,11 @@ export function BudgetReviewSheet({ project, onClose, onAllocated }: BudgetRevie
     setIsSaving(true);
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/projects/${project.project_id}/budget`, {
       method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ allocated_budget: amount }),
     });
 

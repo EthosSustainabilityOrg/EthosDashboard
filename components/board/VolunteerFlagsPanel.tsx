@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
@@ -59,11 +60,34 @@ export function VolunteerFlagsPanel({ flags }: VolunteerFlagsPanelProps) {
     [localFlags, filter],
   );
 
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
   async function markResolved(flagId: string) {
     setError(null);
 
+    const headers = await getAuthHeaders();
+
     const response = await fetch(`/api/flags/${flagId}/resolve`, {
       method: 'PATCH',
+      headers,
     });
 
     const body = (await response.json()) as ResolveResponse;

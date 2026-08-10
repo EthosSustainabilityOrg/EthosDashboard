@@ -7,11 +7,11 @@ import type { ApiResponse } from '@/types/api';
 import type { Task } from '@/types/tasks';
 import { Tag } from '@/components/ui/Tag';
 import { MetricCard } from '@/components/dashboard/MetricCard';
-import { decodeRoleId } from '@/lib/decode-role';
 
 type CurrentUser = {
   first_name: string;
   created_at: string;
+  org_role_id: number;
   chapters:
     | {
         name: string;
@@ -125,9 +125,6 @@ export default async function HomePage() {
     redirect('/login');
   }
 
-  const isBoard = decodeRoleId(session.access_token) === 3;
-  const boardMetricHref = isBoard ? '/board/overview' : undefined;
-
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
@@ -143,7 +140,7 @@ export default async function HomePage() {
   ] = await Promise.all([
     supabase
       .from('users')
-      .select('first_name, created_at, chapters(name)')
+      .select('first_name, created_at, org_role_id, chapters(name)')
       .eq('user_id', session.user.id)
       .single(),
     supabase
@@ -190,6 +187,8 @@ export default async function HomePage() {
   ]);
 
   const user = userData as CurrentUser | null;
+  const isBoard = user?.org_role_id === 3;
+  const boardMetricHref = isBoard ? '/board/overview' : undefined;
   const donations = (donationData ?? []) as DonationAmount[];
   const application = applicationData as ApprovedApplication | null;
   const announcements = (announcementsData ?? []) as Announcement[];

@@ -61,13 +61,14 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Di
     const page = Math.max(1, parseInt(url.searchParams.get('page') || '1', 10));
     const perPage = Math.min(50, Math.max(1, parseInt(url.searchParams.get('per_page') || '20', 10)));
 
-    const { data: roleData } = await supabaseAdmin
+    const { data: viewerData } = await supabaseAdmin
       .from('users')
-      .select('org_role_id')
+      .select('org_role_id, chapter_id')
       .eq('user_id', claims.sub)
       .maybeSingle();
 
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = viewerData?.org_role_id ?? 1;
+    const chapterId = viewerData?.chapter_id ?? null;
 
     // 4. Non-Board users cannot use the chapter_id filter param
     if (orgRoleId !== 3 && chapterParam) {
@@ -82,7 +83,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Di
     // Board: all chapters unless chapterParam is set
     let targetChapterId: string | null = null;
     if (orgRoleId !== 3) {
-      targetChapterId = claims.chapter_id;
+      targetChapterId = chapterId;
     } else if (chapterParam) {
       targetChapterId = chapterParam;
     }

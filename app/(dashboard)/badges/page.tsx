@@ -20,16 +20,6 @@ type ProjectOption = {
   name: string;
 };
 
-function decodeRoleId(accessToken: string) {
-  const payload = accessToken.split('.')[1];
-  if (!payload) return 1;
-
-  const parsed = JSON.parse(atob(payload)) as unknown;
-  if (!parsed || typeof parsed !== 'object' || !('org_role_id' in parsed)) return 1;
-
-  return Number(parsed.org_role_id);
-}
-
 function getProjectName(badge: BadgeRow) {
   const project = Array.isArray(badge.projects) ? badge.projects[0] : badge.projects;
   return project?.name ?? null;
@@ -61,7 +51,13 @@ export default async function BadgesPage() {
     redirect('/login');
   }
 
-  if (decodeRoleId(session.access_token) !== 3) {
+  const { data: viewerData } = await supabase
+    .from('users')
+    .select('org_role_id')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+
+  if (viewerData?.org_role_id !== 3) {
     redirect('/home');
   }
 

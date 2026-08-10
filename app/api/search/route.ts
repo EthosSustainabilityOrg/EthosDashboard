@@ -110,16 +110,16 @@ async function requireUser(req: NextRequest): Promise<AuthContext | null> {
 
   if (error || !user || !claims?.sub) return null;
 
-  const { data: roleData } = await supabaseAdmin
+  const { data: userData } = await supabaseAdmin
     .from('users')
-    .select('org_role_id')
+    .select('org_role_id, chapter_id')
     .eq('user_id', claims.sub)
     .maybeSingle();
 
   return {
     userId: claims.sub,
-    roleId: roleData?.org_role_id ?? 1,
-    chapterId: claims.chapter_id ?? null,
+    roleId: userData?.org_role_id ?? 1,
+    chapterId: userData?.chapter_id ?? null,
   };
 }
 

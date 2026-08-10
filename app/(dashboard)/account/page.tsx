@@ -57,20 +57,28 @@ export default function AccountPage() {
   );
 
   useEffect(() => {
+    async function getAuthHeaders() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      return {
+        'Content-Type': 'application/json',
+        ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+      };
+    }
+
     async function loadUser() {
-      const response = await fetch('/api/users/me', {
-        credentials: 'include',
-      });
-      console.log('users/me status:', response.status);
+      const headers = await getAuthHeaders();
+      const response = await fetch('/api/users/me', { headers });
       const body = (await response.json()) as ApiResponse<UserMeResponse>;
-      console.log('users/me body:', JSON.stringify(body));
 
       setUser(body.data?.user ?? null);
       setIsLoading(false);
     }
 
     void loadUser();
-  }, []);
+  }, [supabase]);
 
   async function handleSignOut() {
     await supabase.auth.signOut();
