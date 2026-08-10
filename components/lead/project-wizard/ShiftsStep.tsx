@@ -34,10 +34,15 @@ function formatDateRange(shift: WizardShift) {
 
 export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {
   const [draft, setDraft] = useState(emptyShift);
+  const [error, setError] = useState<string | null>(null);
 
   function addShift() {
-    if (!draft.start_datetime || !draft.end_datetime || !draft.capacity) return;
+    if (!draft.start_datetime || !draft.end_datetime || !draft.capacity) {
+      setError('Please fill in all required fields.');
+      return;
+    }
 
+    setError(null);
     onChange([
       ...shifts,
       {
@@ -119,6 +124,8 @@ export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {
         placeholder="Optional"
         name="shift-notes"
       />
+
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
       <Button onClick={addShift}>Save Shift</Button>
     </div>

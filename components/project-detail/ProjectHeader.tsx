@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import type { Project } from '@/types/projects';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -45,15 +44,14 @@ export function ProjectHeader({
   isLead,
   isBoard,
 }: ProjectHeaderProps) {
-  const router = useRouter();
   const projectTag = getProjectTag(project);
 
   return (
     <header>
       <div className="mb-6 flex items-start justify-between gap-4">
-        <Button variant="ghost" onClick={() => router.back()}>
-          ← Back
-        </Button>
+        <Link href={isLead || isBoard ? '/lead-projects' : '/my-projects'}>
+          <Button variant="ghost">← Back</Button>
+        </Link>
 
         {isLead || isBoard ? (
           <Link href={`/projects/${project.project_id}/edit`}>
@@ -69,7 +67,7 @@ export function ProjectHeader({
 
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <Tag label={projectTag.label} color={projectTag.color} />
-          {project.is_hq ? <Tag label="HQ" color="sand" /> : null}
+          {project.is_hq && project.project_type_id < 10 ? <Tag label="HQ" color="sand" /> : null}
           <span className="text-sm text-warm-gray">{project.chapter_name}</span>
         </div>
       </div>

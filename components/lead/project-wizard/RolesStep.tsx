@@ -23,10 +23,15 @@ function createLocalId() {
 
 export function RolesStep({ roles, onChange }: RolesStepProps) {
   const [draft, setDraft] = useState(emptyRole);
+  const [error, setError] = useState<string | null>(null);
 
   function addRole() {
-    if (!draft.role_name || !draft.capacity) return;
+    if (!draft.role_name || !draft.capacity) {
+      setError('Please fill in all required fields.');
+      return;
+    }
 
+    setError(null);
     onChange([
       ...roles,
       {
@@ -96,6 +101,8 @@ export function RolesStep({ roles, onChange }: RolesStepProps) {
         placeholder="Optional"
         name="role-description"
       />
+
+      {error ? <p className="text-sm text-red-500">{error}</p> : null}
 
       <Button onClick={addRole}>Save Role</Button>
     </div>

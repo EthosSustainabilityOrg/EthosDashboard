@@ -23,11 +23,13 @@ export function ApplicationSettingsStep({
         <div>
           <div className="mb-2 flex items-center gap-2">
             <span className="text-sm font-semibold text-espresso">Application level</span>
-            <span
-              title={'Full App: applicants complete the full 4-step form\nMid App: applicants complete basics only (2 steps)\nNo App: volunteers can join instantly with one click'}
-              className="flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-sand text-xs font-bold text-warm-gray"
-            >
+            <span className="group relative flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-sand text-xs font-bold text-warm-gray">
               i
+              <div className="absolute left-0 top-full z-10 mt-1 hidden w-64 rounded-lg bg-espresso p-3 text-xs text-cream shadow-lg group-hover:block">
+                <p>Full App: applicants complete the full 4-step form</p>
+                <p>Mid App: applicants complete basics only (2 steps)</p>
+                <p>No App: volunteers can join instantly with one click</p>
+              </div>
             </span>
           </div>
           <Select

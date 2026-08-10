@@ -10,6 +10,7 @@ type ReviewStepProps = {
   onEditStep: (step: number) => void;
   isSaving: boolean;
   publishError: string | null;
+  onBack: () => void;
   onSaveDraft: () => void;
   onPublish: () => void;
 };
@@ -49,6 +50,7 @@ export function ReviewStep({
   onEditStep,
   isSaving,
   publishError,
+  onBack,
   onSaveDraft,
   onPublish,
 }: ReviewStepProps) {
@@ -85,13 +87,18 @@ export function ReviewStep({
 
       {publishError ? <p className="text-sm text-red-500">{publishError}</p> : null}
 
-      <div className="flex justify-end gap-3 pt-4">
-        <Button variant="secondary" onClick={onSaveDraft} disabled={isSaving}>
-          {isSaving ? 'Saving...' : 'Save Draft'}
+      <div className="flex items-center justify-between gap-4 pt-4">
+        <Button variant="ghost" onClick={onBack} disabled={isSaving}>
+          ← Back
         </Button>
-        <Button onClick={onPublish} disabled={isSaving}>
-          {isSaving ? 'Publishing...' : 'Publish Project'}
-        </Button>
+        <div className="flex gap-3">
+          <Button variant="secondary" onClick={onSaveDraft} disabled={isSaving}>
+            {isSaving ? 'Saving...' : 'Save Draft'}
+          </Button>
+          <Button variant="primary" onClick={onPublish} disabled={isSaving}>
+            {isSaving ? 'Publishing...' : 'Publish Project'}
+          </Button>
+        </div>
       </div>
     </div>
   );

@@ -78,7 +78,7 @@ export function LeadProjectCard({
     >
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Tag label={projectTag.label} color={projectTag.color} />
-        {isHq ? <Tag label="HQ" color="sand" /> : null}
+        {isHq && project.project_type_id < 10 ? <Tag label="HQ" color="sand" /> : null}
         {getStatusBadge(project)}
       </div>
 

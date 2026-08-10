@@ -103,6 +103,7 @@ export function CreateProjectWizard({
   const [readinessChecked, setReadinessChecked] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
+  const [stepError, setStepError] = useState<string | null>(null);
 
   const supabase = useMemo(
     () =>
@@ -115,6 +116,34 @@ export function CreateProjectWizard({
 
   function updateFormData(update: Partial<WizardFormData>) {
     setFormData((current) => ({ ...current, ...update }));
+  }
+
+  function stepIsValid(step: number): boolean {
+    if (step === 1) {
+      return Boolean(
+        formData.name.trim() &&
+          formData.project_type_id &&
+          formData.description.trim() &&
+          formData.max_applications.trim(),
+      );
+    }
+
+    return true;
+  }
+
+  function goToNextStep() {
+    if (!stepIsValid(currentStep)) {
+      setStepError('Please fill in all required fields.');
+      return;
+    }
+
+    setStepError(null);
+    setCurrentStep((step) => step + 1);
+  }
+
+  function goToPreviousStep() {
+    setStepError(null);
+    setCurrentStep((step) => step - 1);
   }
 
   async function getAuthHeaders() {
@@ -275,6 +304,7 @@ export function CreateProjectWizard({
         onEditStep={setCurrentStep}
         isSaving={isSaving}
         publishError={publishError}
+        onBack={goToPreviousStep}
         onSaveDraft={saveDraft}
         onPublish={publishProject}
       />
@@ -301,23 +331,23 @@ export function CreateProjectWizard({
           <p className="mt-6 text-sm text-red-500">{publishError}</p>
         ) : null}
 
-        <div className="mt-8 flex items-center justify-between">
-          {currentStep > 1 ? (
-            <Button variant="ghost" onClick={() => setCurrentStep((step) => step - 1)}>
-              Back
-            </Button>
-          ) : (
-            <span />
-          )}
+        {currentStep < 6 && stepError ? (
+          <p className="mt-6 text-sm text-red-500">{stepError}</p>
+        ) : null}
 
-          {currentStep < 6 ? (
-            <Button onClick={() => setCurrentStep((step) => step + 1)}>
-              Next
-            </Button>
-          ) : (
-            <span />
-          )}
-        </div>
+        {currentStep < 6 ? (
+          <div className="mt-8 flex items-center justify-between">
+            {currentStep > 1 ? (
+              <Button variant="ghost" onClick={goToPreviousStep}>
+                Back
+              </Button>
+            ) : (
+              <span />
+            )}
+
+            <Button onClick={goToNextStep}>Next</Button>
+          </div>
+        ) : null}
       </section>
     </div>
   );
