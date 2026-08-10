@@ -20,7 +20,7 @@ type TasksResponse = PaginatedResponse<TaskListItem> & {
 
 type CreateTaskInput = {
   project_id: string;
-  assigned_to: string;
+  assigned_to?: string | null;
   title: string;
   description?: string | null;
   status?: TaskStatus;
@@ -69,10 +69,12 @@ function isCreateTaskInput(value: unknown): value is CreateTaskInput {
 
   const body = value as Record<string, unknown>;
   const statusIsValid = body.status === undefined || isTaskStatus(body.status);
+  const assignedToIsValid =
+    body.assigned_to === undefined || body.assigned_to === null || typeof body.assigned_to === 'string';
 
   return (
     typeof body.project_id === 'string' &&
-    typeof body.assigned_to === 'string' &&
+    assignedToIsValid &&
     typeof body.title === 'string' &&
     body.title.trim().length > 0 &&
     statusIsValid
@@ -300,10 +302,12 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
     const body: unknown = await req.json().catch(() => null);
     if (!isCreateTaskInput(body)) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'project_id, assigned_to, and title are required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'A title is required to create a task' } },
         { status: 400 }
       );
     }
+
+    const assignedTo = body.assigned_to ?? null;
 
     const { data: project } = await supabaseAdmin
       .from('projects')
@@ -325,26 +329,28 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
       );
     }
 
-    const { data: approvedMember } = await supabaseAdmin
-      .from('applications')
-      .select('application_id')
-      .eq('project_id', body.project_id)
-      .eq('user_id', body.assigned_to)
-      .eq('status', 'Approved')
-      .maybeSingle<{ application_id: string }>();
+    if (assignedTo) {
+      const { data: approvedMember } = await supabaseAdmin
+        .from('applications')
+        .select('application_id')
+        .eq('project_id', body.project_id)
+        .eq('user_id', assignedTo)
+        .eq('status', 'Approved')
+        .maybeSingle<{ application_id: string }>();
 
-    if (!approvedMember) {
-      return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'assigned_to must be an approved member on the project' } },
-        { status: 400 }
-      );
+      if (!approvedMember) {
+        return NextResponse.json(
+          { data: null, error: { code: 'VALIDATION_ERROR', message: 'assigned_to must be an approved member on the project' } },
+          { status: 400 }
+        );
+      }
     }
 
     const { data: task, error: insertError } = await supabaseAdmin
       .from('tasks')
       .insert({
         project_id: body.project_id,
-        assigned_to: body.assigned_to,
+        assigned_to: assignedTo,
         created_by: claims.sub,
         title: body.title.trim(),
         description: body.description ?? null,
@@ -361,18 +367,20 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
       );
     }
 
-    await supabaseAdmin
-      .from('notifications')
-      .insert({
-        user_id: body.assigned_to,
-        sent_to_email: null,
-        sent_to_slack_user_id: null,
-        channel: 'InApp',
-        event_type: 'Task Assigned',
-        subject: null,
-        body: `You were assigned a task for ${project.name}: ${task.title}`,
-        status: 'Sent',
-      });
+    if (assignedTo) {
+      await supabaseAdmin
+        .from('notifications')
+        .insert({
+          user_id: assignedTo,
+          sent_to_email: null,
+          sent_to_slack_user_id: null,
+          channel: 'InApp',
+          event_type: 'Task Assigned',
+          subject: null,
+          body: `You were assigned a task for ${project.name}: ${task.title}`,
+          status: 'Sent',
+        });
+    }
 
     return NextResponse.json({ data: task, error: null }, { status: 201 });
   } catch {
