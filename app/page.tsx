@@ -21,8 +21,22 @@ export default async function RootPage() {
   );
 
   const {
-    data: { user },
+    data: { user: authUser },
   } = await supabase.auth.getUser();
 
-  redirect(user ? '/home' : '/login');
+  if (!authUser) {
+    redirect('/login');
+  }
+
+  const { data: user } = await supabase
+    .from('users')
+    .select('onboarding_complete')
+    .eq('user_id', authUser.id)
+    .maybeSingle();
+
+  if (!user) {
+    redirect('/projects');
+  }
+
+  redirect(user.onboarding_complete ? '/home' : '/pending');
 }

@@ -36,7 +36,15 @@ export default async function ProjectBoardPage() {
   } = await supabase.auth.getUser();
 
   if (user) {
-    redirect('/open-calls');
+    const { data: existingUser } = await supabase
+      .from('users')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (existingUser) {
+      redirect('/open-calls');
+    }
   }
 
   return <ProjectBoard />;
