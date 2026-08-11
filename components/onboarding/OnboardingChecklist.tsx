@@ -70,7 +70,9 @@ export function OnboardingChecklist({ onboarding }: OnboardingChecklistProps) {
   const orientationDone = onboarding.orientation_completed_at !== null;
   const waiverDone = onboarding.waiver_status === 'Signed';
   const parentalConsentDone = onboarding.parental_consent_status === 'Signed';
-  const allPreReviewDone = slackDone && orientationDone && waiverDone && parentalConsentDone;
+  // TODO: re-enable Slack gate when Slack OAuth is wired
+  const orientationActive = !orientationDone;
+  const allPreReviewDone = orientationDone && waiverDone && parentalConsentDone;
 
   async function sendReminder() {
     setMessage('');
@@ -115,9 +117,9 @@ export function OnboardingChecklist({ onboarding }: OnboardingChecklistProps) {
     },
     {
       label: 'Orientation videos',
-      status: orientationDone ? 'done' : slackDone ? 'active' : 'locked',
+      status: orientationDone ? 'done' : orientationActive ? 'active' : 'locked',
       action:
-        !orientationDone && slackDone ? (
+        !orientationDone && orientationActive ? (
           <Link className="text-sm font-semibold text-espresso underline" href="/pending/orientation">
             Start
           </Link>

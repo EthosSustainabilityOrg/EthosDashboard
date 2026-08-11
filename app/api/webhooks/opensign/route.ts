@@ -268,8 +268,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<OpenSignWebho
   }
 
   if (onboarding.parental_consent_doc_id === documentId) {
+    // TODO: re-enable Slack gate when Slack OAuth is wired
     const preReviewComplete =
-      onboarding.slack_connected &&
+      // onboarding.slack_connected &&
       onboarding.orientation_completed_at !== null &&
       onboarding.waiver_status === 'Signed';
 
