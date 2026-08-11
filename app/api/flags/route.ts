@@ -64,7 +64,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<V
   if (auth.roleId !== 2 && auth.roleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Lead or Board only' } }, { status: 403 });
 
   const body: unknown = await req.json().catch(() => null);
-  if (!isCreateFlagInput(body)) return NextResponse.json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'user_id and project_id are required' } }, { status: 400 });
+  if (!isCreateFlagInput(body)) return NextResponse.json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'A volunteer and project are required' } }, { status: 400 });
 
   const { data: project } = await supabaseAdmin
     .from('projects')

@@ -74,7 +74,7 @@ export async function POST(
     const body: unknown = await req.json().catch(() => null);
     if (!isAwardBadgeInput(body)) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'user_id is required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'Please select a user to award this badge to' } },
         { status: 400 }
       );
     }

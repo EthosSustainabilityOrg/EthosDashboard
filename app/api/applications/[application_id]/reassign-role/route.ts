@@ -73,7 +73,7 @@ export async function PATCH(
     const body = parseInput(await req.json().catch(() => null));
     if (!body) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'project_role_id is required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'Please select a new role' } },
         { status: 400 },
       );
     }

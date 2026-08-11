@@ -148,7 +148,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
     const body: unknown = await req.json().catch(() => null);
     if (!isCreateBadgeInput(body)) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'badge_category and name are required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'A badge name and category are required' } },
         { status: 400 }
       );
     }

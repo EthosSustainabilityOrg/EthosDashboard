@@ -41,6 +41,7 @@ export default function WorkPage() {
   const [groupBy, setGroupBy] = useState<GroupBy>('project');
   const [orderBy, setOrderBy] = useState<OrderBy>('due_date');
   const [tasks, setTasks] = useState<WorkTask[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   const supabase = useMemo(
     () =>
@@ -76,6 +77,7 @@ export default function WorkPage() {
 
       if (projectIds.length === 0) {
         setTasks([]);
+        setIsLoading(false);
         return;
       }
 
@@ -93,6 +95,7 @@ export default function WorkPage() {
 
       const mergedTasks = taskBodies.flatMap((body) => body.data?.tasks ?? []);
       setTasks(mergedTasks);
+      setIsLoading(false);
     }
 
     void loadTasks();
@@ -122,7 +125,9 @@ export default function WorkPage() {
         />
       </div>
 
-      {viewMode === 'list' ? (
+      {isLoading ? (
+        <p className="text-warm-gray">Loading...</p>
+      ) : viewMode === 'list' ? (
         <TaskListView tasks={tasks} groupBy={groupBy} orderBy={orderBy} />
       ) : (
         <TaskKanbanView tasks={tasks} />

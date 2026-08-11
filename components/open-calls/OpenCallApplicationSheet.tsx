@@ -1,5 +1,9 @@
 'use client';
 
+import { useEffect, useMemo, useState } from 'react';
+import { createBrowserClient } from '@supabase/ssr';
+import type { ApiResponse } from '@/types/api';
+import type { Shift } from '@/types/shifts';
 import type { OpenCallProject, OpenCallUser } from '@/components/open-calls/OpenCallsBoard';
 import { ApplicationForm } from '@/components/onboarding/ApplicationForm';
 
@@ -11,6 +15,10 @@ type OpenCallApplicationSheetProps = {
   onSubmitted: (applicationId: string) => void;
 };
 
+type ProjectShiftsResponse = {
+  shifts: Array<Omit<Shift, 'project_id'>>;
+};
+
 export function OpenCallApplicationSheet({
   project,
   maxSteps,
@@ -18,6 +26,37 @@ export function OpenCallApplicationSheet({
   onClose,
   onSubmitted,
 }: OpenCallApplicationSheetProps) {
+  const [shifts, setShifts] = useState<Shift[]>([]);
+
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  useEffect(() => {
+    async function loadShifts() {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      const response = await fetch(`/api/projects/${project.project_id}`, {
+        headers: session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : undefined,
+      });
+
+      const body = (await response.json()) as ApiResponse<ProjectShiftsResponse>;
+
+      setShifts(
+        (body.data?.shifts ?? []).map((shift) => ({ ...shift, project_id: project.project_id })),
+      );
+    }
+
+    void loadShifts();
+  }, [supabase, project.project_id]);
+
   return (
     <>
       <button
@@ -47,7 +86,7 @@ export function OpenCallApplicationSheet({
 
           <ApplicationForm
             project={project}
-            shifts={[]}
+            shifts={shifts}
             user={{
               first_name: user.first_name,
               last_name: user.last_name,

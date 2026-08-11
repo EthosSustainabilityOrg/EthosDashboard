@@ -70,7 +70,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<U
     const body = parseInput(await req.json().catch(() => null));
     if (!body) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'user_id and ethos_email are required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'A user and Ethos email address are required' } },
         { status: 400 },
       );
     }

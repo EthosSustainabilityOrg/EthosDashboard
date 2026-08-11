@@ -128,12 +128,14 @@ export default async function HomePage() {
   const monthStart = new Date();
   monthStart.setDate(1);
   monthStart.setHours(0, 0, 0, 0);
+  const monthEnd = new Date(monthStart);
+  monthEnd.setMonth(monthEnd.getMonth() + 1);
 
   const [
     { data: userData },
     { count: activeProjectsCount },
     { count: totalMembersCount },
-    { count: eventsThisMonthCount },
+    { data: eventShiftsThisMonth },
     { data: donationData },
     { data: applicationData },
     { data: announcementsData },
@@ -152,10 +154,11 @@ export default async function HomePage() {
       .from('users')
       .select('user_id', { count: 'exact', head: true }),
     supabase
-      .from('projects')
-      .select('project_id', { count: 'exact', head: true })
-      .eq('project_type_id', 1)
-      .gte('created_at', monthStart.toISOString()),
+      .from('shifts')
+      .select('project_id, projects!inner(project_type_id)')
+      .eq('projects.project_type_id', 1)
+      .gte('start_datetime', monthStart.toISOString())
+      .lt('start_datetime', monthEnd.toISOString()),
     supabase
       .from('donations')
       .select('amount'),
@@ -189,6 +192,9 @@ export default async function HomePage() {
   const user = userData as CurrentUser | null;
   const isBoard = user?.org_role_id === 3;
   const boardMetricHref = isBoard ? '/board/overview' : undefined;
+  const eventsThisMonthCount = new Set(
+    ((eventShiftsThisMonth ?? []) as Array<{ project_id: string }>).map((shift) => shift.project_id),
+  ).size;
   const donations = (donationData ?? []) as DonationAmount[];
   const application = applicationData as ApprovedApplication | null;
   const announcements = (announcementsData ?? []) as Announcement[];

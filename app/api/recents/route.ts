@@ -70,7 +70,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
   const rawBody: unknown = await req.json().catch(() => null);
   if (!isRecordRecentInput(rawBody)) {
     return NextResponse.json(
-      { data: null, error: { code: 'VALIDATION_ERROR', message: 'page_type and reference_id are required' } },
+      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Page type and reference are required' } },
       { status: 400 }
     );
   }

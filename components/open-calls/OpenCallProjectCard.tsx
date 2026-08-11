@@ -50,7 +50,7 @@ export function OpenCallProjectCard({
     <article className="flex h-full flex-col rounded-xl border border-sand bg-cream p-5 transition hover:shadow-md">
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <Tag label={tag.label} color={tag.color} />
-        {project.is_hq ? <Tag label="HQ" color="sand" /> : null}
+        {project.is_hq && project.project_type_id < 10 ? <Tag label="HQ" color="sand" /> : null}
         {project.open_call_app_level ? (
           <Badge label={project.open_call_app_level} variant="peach" />
         ) : null}

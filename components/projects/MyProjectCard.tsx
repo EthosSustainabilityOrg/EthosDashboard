@@ -56,7 +56,7 @@ export function MyProjectCard({
     >
       <div className="mb-4 flex flex-wrap gap-2">
         <Tag label={projectTag.label} color={projectTag.color} />
-        {project.is_hq ? <Tag label="HQ" color="sand" /> : null}
+        {project.is_hq && project.project_type_id < 10 ? <Tag label="HQ" color="sand" /> : null}
       </div>
 
       <h2 className="text-lg font-semibold text-espresso">{project.name}</h2>

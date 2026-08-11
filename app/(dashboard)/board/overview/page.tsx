@@ -30,9 +30,18 @@ type ApplicationRow = {
   status: string;
 };
 
+type ShiftProjectRow = {
+  project_id: string;
+};
+
 function startOfCurrentMonth() {
   const now = new Date();
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
+function startOfNextMonth() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth() + 1, 1).toISOString();
 }
 
 function sumAllocatedBudget(projects: ProjectRow[]) {
@@ -57,22 +66,37 @@ export default async function BoardOverviewPage() {
     },
   );
 
-  const [chaptersResult, projectsResult, usersResult, applicationsResult] = await Promise.all([
+  const currentMonthStart = startOfCurrentMonth();
+  const nextMonthStart = startOfNextMonth();
+
+  const [chaptersResult, projectsResult, usersResult, applicationsResult, eventShiftsResult] = await Promise.all([
     supabase.from('chapters').select('chapter_id, name, is_hq'),
     supabase
       .from('projects')
       .select('project_id, chapter_id, project_type_id, is_published, closed_at, allocated_budget, created_at'),
     supabase.from('users').select('user_id, chapter_id'),
     supabase.from('applications').select('application_id, project_id, status'),
+    supabase
+      .from('shifts')
+      .select('project_id, projects!inner(project_type_id)')
+      .eq('projects.project_type_id', 1)
+      .gte('start_datetime', currentMonthStart)
+      .lt('start_datetime', nextMonthStart),
   ]);
 
   const chapters = (chaptersResult.data ?? []) as ChapterRow[];
   const projects = (projectsResult.data ?? []) as ProjectRow[];
   const users = (usersResult.data ?? []) as UserRow[];
   const applications = (applicationsResult.data ?? []) as ApplicationRow[];
+  const eventShiftsThisMonth = (eventShiftsResult.data ?? []) as ShiftProjectRow[];
 
   const activeProjects = projects.filter((project) => project.is_published && project.closed_at === null);
-  const currentMonthStart = startOfCurrentMonth();
+  const activeProjectIds = new Set(activeProjects.map((project) => project.project_id));
+  const eventsThisMonthCount = new Set(
+    eventShiftsThisMonth
+      .map((shift) => shift.project_id)
+      .filter((projectId) => activeProjectIds.has(projectId)),
+  ).size;
 
   const chapterMetrics = chapters.map((chapter) => {
     const chapterProjects = projects.filter((project) => project.chapter_id === chapter.chapter_id);
@@ -99,11 +123,7 @@ export default async function BoardOverviewPage() {
       <OrgOverviewMetrics
         totalProjects={activeProjects.length}
         totalMembers={users.length}
-        eventsThisMonth={
-          activeProjects.filter(
-            (project) => project.project_type_id === 1 && project.created_at >= currentMonthStart,
-          ).length
-        }
+        eventsThisMonth={eventsThisMonthCount}
         totalFundsRaised={sumAllocatedBudget(projects)}
       />
 

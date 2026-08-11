@@ -82,7 +82,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<C
     const rawBody: unknown = await req.json().catch(() => null);
     if (!isConnectSlackInput(rawBody)) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'slack_code is required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'A Slack authorization code is required' } },
         { status: 400 }
       );
     }

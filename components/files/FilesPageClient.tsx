@@ -62,6 +62,7 @@ export function FilesPageClient({ isBoard }: FilesPageClientProps) {
   const [files, setFiles] = useState<FileListItem[]>([]);
   const [projects, setProjects] = useState<ProjectFilterOption[]>([]);
   const [addUniversalOpen, setAddUniversalOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const supabase = useMemo(
     () =>
@@ -103,6 +104,8 @@ export function FilesPageClient({ isBoard }: FilesPageClientProps) {
           new Map(projectOptions.map((project) => [project.project_id, project])).values(),
         ),
       );
+
+      setIsLoading(false);
     }
 
     void loadFilesAndProjects();
@@ -115,6 +118,8 @@ export function FilesPageClient({ isBoard }: FilesPageClientProps) {
 
     return categoryMatches && projectMatches && matchesSearch(file, search);
   });
+
+  if (isLoading) return <p className="text-warm-gray">Loading...</p>;
 
   return (
     <div className="mx-auto w-full max-w-6xl px-8 py-10">

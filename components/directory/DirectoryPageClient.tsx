@@ -69,6 +69,7 @@ export function DirectoryPageClient({ isBoard }: DirectoryPageClientProps) {
   const [badgeCounts, setBadgeCounts] = useState<Record<string, number>>({});
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
+  const [isLoading, setIsLoading] = useState(true);
 
   const supabase = useMemo(
     () =>
@@ -136,7 +137,12 @@ export function DirectoryPageClient({ isBoard }: DirectoryPageClientProps) {
   }
 
   useEffect(() => {
-    void loadMembers(1, false);
+    async function loadInitial() {
+      await loadMembers(1, false);
+      setIsLoading(false);
+    }
+
+    void loadInitial();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [supabase]);
 
@@ -169,7 +175,9 @@ export function DirectoryPageClient({ isBoard }: DirectoryPageClientProps) {
       </div>
 
       <section className="rounded-xl border border-sand bg-cream">
-        {filteredMembers.length > 0 ? (
+        {isLoading ? (
+          <p className="px-5 py-16 text-center text-sm text-warm-gray">Loading...</p>
+        ) : filteredMembers.length > 0 ? (
           filteredMembers.map((member) => (
             <MemberListItem
               key={member.user_id}

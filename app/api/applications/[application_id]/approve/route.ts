@@ -95,7 +95,7 @@ export async function PATCH(
     const body = await req.json().catch(() => null);
     if (!body || !body.project_role_id) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'project_role_id is required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'Please select a role for this volunteer' } },
         { status: 400 }
       );
     }

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import type { Badge } from '@/types/badges';
 import type { OrgRoleId } from '@/types/auth';
 import { AwardBadgeSheet } from '@/components/lead/badges/AwardBadgeSheet';
@@ -28,6 +29,7 @@ export function BoardProfileActions({
   member,
   achievementBadges,
 }: BoardProfileActionsProps) {
+  const router = useRouter();
   const [changeRoleOpen, setChangeRoleOpen] = useState(false);
   const [awardBadgeOpen, setAwardBadgeOpen] = useState(false);
 
@@ -51,7 +53,10 @@ export function BoardProfileActions({
         <ChangeRoleSheet
           member={member}
           onClose={() => setChangeRoleOpen(false)}
-          onRoleChanged={() => setChangeRoleOpen(false)}
+          onRoleChanged={() => {
+            setChangeRoleOpen(false);
+            router.refresh();
+          }}
         />
       ) : null}
 

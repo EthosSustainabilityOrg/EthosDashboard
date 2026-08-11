@@ -108,8 +108,8 @@ export function OnboardingChecklist({ onboarding }: OnboardingChecklistProps) {
       label: 'Connect Slack account',
       status: slackDone ? 'done' : 'active',
       action: slackDone ? undefined : (
-        <Button variant="primary" size="sm">
-          Connect Slack
+        <Button variant="primary" size="sm" disabled>
+          Coming soon
         </Button>
       ),
     },

@@ -227,7 +227,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<F
     const body: unknown = await req.json().catch(() => null);
     if (!isCreateFileInput(body)) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: 'drive_url, file_name, file_type, and category are required' } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'A file name, Drive URL, and file type are required' } },
         { status: 400 }
       );
     }

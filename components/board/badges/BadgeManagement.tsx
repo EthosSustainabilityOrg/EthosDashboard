@@ -41,7 +41,12 @@ function BadgeRow({ badge }: { badge: ManagedBadge }) {
   return (
     <article className="flex items-center gap-4 border-b border-sand px-5 py-4 last:border-b-0">
       {badge.image_url ? (
-        <div className="h-8 w-8 shrink-0 rounded-md border border-sand bg-sand/40" />
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={badge.image_url}
+          alt=""
+          className="h-8 w-8 shrink-0 rounded-md border border-sand object-cover"
+        />
       ) : null}
 
       <div className="min-w-0 flex-1">
