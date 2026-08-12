@@ -21,6 +21,7 @@ export function LockedSidebarClient({
   return (
     <LockedSidebarLayout
       user={{ firstName, lastName }}
+      avatarAriaLabel="Sign out"
       onAvatarClick={async () => {
         const supabase = createBrowserClient(
           process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',

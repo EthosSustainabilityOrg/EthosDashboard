@@ -11,12 +11,14 @@ type LockedSidebarLayoutProps = {
     lastName: string;
   };
   onAvatarClick: () => void;
+  avatarAriaLabel?: string;
 };
 
 export function LockedSidebarLayout({
   children,
   user,
   onAvatarClick,
+  avatarAriaLabel,
 }: LockedSidebarLayoutProps) {
   return (
     <div className="flex min-h-screen bg-cream text-espresso">
@@ -37,6 +39,7 @@ export function LockedSidebarLayout({
             firstName={user.firstName}
             lastName={user.lastName}
             onClick={onAvatarClick}
+            ariaLabel={avatarAriaLabel}
           />
         </div>
       </aside>
