@@ -2,24 +2,13 @@
 
 import type * as React from 'react';
 import Image from 'next/image';
-import { ProfileAvatarButton } from './ProfileAvatarButton';
 
 type LockedSidebarLayoutProps = {
   children: React.ReactNode;
-  user: {
-    firstName: string;
-    lastName: string;
-  };
-  onAvatarClick: () => void;
-  avatarAriaLabel?: string;
+  avatarSlot: React.ReactNode;
 };
 
-export function LockedSidebarLayout({
-  children,
-  user,
-  onAvatarClick,
-  avatarAriaLabel,
-}: LockedSidebarLayoutProps) {
+export function LockedSidebarLayout({ children, avatarSlot }: LockedSidebarLayoutProps) {
   return (
     <div className="flex min-h-screen bg-cream text-espresso">
       <aside className="flex h-screen w-16 shrink-0 flex-col items-center bg-espresso">
@@ -34,14 +23,7 @@ export function LockedSidebarLayout({
           />
         </div>
 
-        <div className="mt-auto flex w-full justify-center px-3 py-5">
-          <ProfileAvatarButton
-            firstName={user.firstName}
-            lastName={user.lastName}
-            onClick={onAvatarClick}
-            ariaLabel={avatarAriaLabel}
-          />
-        </div>
+        <div className="mt-auto flex w-full justify-center px-3 py-5">{avatarSlot}</div>
       </aside>
 
       <main className="h-screen flex-1 overflow-y-auto bg-cream">{children}</main>

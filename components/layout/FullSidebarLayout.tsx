@@ -2,26 +2,20 @@
 
 import type * as React from 'react';
 import { EthosLogo } from './EthosLogo';
-import { ProfileAvatarButton } from './ProfileAvatarButton';
 import { SidebarNav } from './SidebarNav';
 
 type OrgRoleId = 1 | 2 | 3;
 
 type FullSidebarLayoutProps = {
   children: React.ReactNode;
-  user: {
-    firstName: string;
-    lastName: string;
-  };
-  onAvatarClick: () => void;
+  avatarSlot: React.ReactNode;
   orgRoleId: OrgRoleId;
   unresolvedLogCount: number;
 };
 
 export function FullSidebarLayout({
   children,
-  user,
-  onAvatarClick,
+  avatarSlot,
   orgRoleId,
   unresolvedLogCount,
 }: FullSidebarLayoutProps) {
@@ -53,11 +47,7 @@ export function FullSidebarLayout({
             </svg>
           </div>
 
-          <ProfileAvatarButton
-            firstName={user.firstName}
-            lastName={user.lastName}
-            onClick={onAvatarClick}
-          />
+          {avatarSlot}
         </div>
       </aside>
 
