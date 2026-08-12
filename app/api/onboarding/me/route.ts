@@ -64,40 +64,84 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<On
       );
     }
 
+    const onboardingColumns = `
+      onboarding_id,
+      user_id,
+      slack_connected,
+      slack_connected_at,
+      orientation_started_at,
+      orientation_completed_at,
+      orientation_progress,
+      waiver_status,
+      waiver_doc_id,
+      waiver_signed_at,
+      parental_consent_status,
+      parental_consent_doc_id,
+      parental_consent_signed_at,
+      completed_at
+    `;
+
     // 2. Fetch current user's onboarding record
     const { data: onboarding, error: onboardingError } = await supabaseAdmin
       .from('onboarding')
-      .select(`
-        onboarding_id,
-        user_id,
-        slack_connected,
-        slack_connected_at,
-        orientation_started_at,
-        orientation_completed_at,
-        orientation_progress,
-        waiver_status,
-        waiver_doc_id,
-        waiver_signed_at,
-        parental_consent_status,
-        parental_consent_doc_id,
-        parental_consent_signed_at,
-        completed_at
-      `)
+      .select(onboardingColumns)
       .eq('user_id', claims.sub)
       .maybeSingle<OnboardingRow>();
 
-    if (onboardingError || !onboarding) {
+    if (onboardingError) {
       return NextResponse.json(
         { data: null, error: { code: 'NOT_FOUND', message: 'Onboarding record not found' } },
         { status: 404 }
       );
     }
 
+    let onboardingRow = onboarding;
+
+    if (!onboardingRow) {
+      // A users row can exist with no matching onboarding row if a past
+      // POST /api/applications call created the user but failed partway
+      // through creating onboarding (or predates that logic). Self-heal here
+      // rather than leaving the user stuck: create the default record if
+      // they have a users row, same defaults POST /api/applications uses.
+      const { data: existingUser } = await supabaseAdmin
+        .from('users')
+        .select('user_id')
+        .eq('user_id', claims.sub)
+        .maybeSingle();
+
+      if (!existingUser) {
+        return NextResponse.json(
+          { data: null, error: { code: 'NOT_FOUND', message: 'Onboarding record not found' } },
+          { status: 404 }
+        );
+      }
+
+      const { data: createdOnboarding, error: createOnboardingError } = await supabaseAdmin
+        .from('onboarding')
+        .insert({
+          user_id: claims.sub,
+          slack_connected: false,
+          waiver_status: 'Not Started',
+          parental_consent_status: 'Not Started',
+        })
+        .select(onboardingColumns)
+        .single<OnboardingRow>();
+
+      if (createOnboardingError || !createdOnboarding) {
+        return NextResponse.json(
+          { data: null, error: { code: 'NOT_FOUND', message: 'Onboarding record not found' } },
+          { status: 404 }
+        );
+      }
+
+      onboardingRow = createdOnboarding;
+    }
+
     // 3. Return API shape with orientation_progress parsed from TEXT to object
     return NextResponse.json({
       data: {
-        ...onboarding,
-        orientation_progress: parseOrientationProgress(onboarding.orientation_progress),
+        ...onboardingRow,
+        orientation_progress: parseOrientationProgress(onboardingRow.orientation_progress),
       },
       error: null,
     });

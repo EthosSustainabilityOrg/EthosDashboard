@@ -190,10 +190,7 @@ export function ProjectBoard() {
       return;
     }
 
-    setApplicationsByProjectId((current) => ({
-      ...current,
-      [project.project_id]: 'Pending',
-    }));
+    window.location.href = '/pending';
   }
 
   const filteredProjects = projects.filter((project) => {

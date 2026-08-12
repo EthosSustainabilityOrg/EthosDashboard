@@ -12,6 +12,7 @@ type CurrentUser = {
   first_name: string;
   last_name: string;
   org_role_id: number;
+  onboarding_complete: boolean;
 };
 
 type CookieToSet = {
@@ -52,12 +53,16 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   const { data } = await supabase
     .from('users')
-    .select('first_name, last_name, org_role_id')
+    .select('first_name, last_name, org_role_id, onboarding_complete')
     .eq('user_id', authUser.id)
     .maybeSingle();
 
   if (!data) {
     redirect('/projects');
+  }
+
+  if (!data.onboarding_complete) {
+    redirect('/pending');
   }
 
   const user = data as CurrentUser | null;

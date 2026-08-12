@@ -381,6 +381,27 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
       });
 
       if (createUserError) {
+        // A manually-created record (e.g. Board-entered) can already hold this
+        // personal_email. Auto-creating a second record for the same person
+        // would fragment their account — they need the Board to link this
+        // Google sign-in to the existing record via /api/auth/link-ethos-email.
+        const isDuplicateEmail =
+          createUserError.code === '23505' &&
+          createUserError.message.includes('users_personal_email_unique');
+
+        if (isDuplicateEmail) {
+          return NextResponse.json(
+            {
+              data: null,
+              error: {
+                code: 'CONFLICT',
+                message: 'An account with this email already exists. Please contact the Board to link your account.',
+              },
+            },
+            { status: 409 },
+          );
+        }
+
         return NextResponse.json(
           { data: null, error: { code: 'VALIDATION_ERROR', message: createUserError.message } },
           { status: 400 },
