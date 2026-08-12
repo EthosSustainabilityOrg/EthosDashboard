@@ -58,7 +58,7 @@ export async function PATCH(
         project_id,
         status,
         projects ( created_by, slack_channel_id ),
-        users ( slack_user_id )
+        users!applications_user_id_fkey ( slack_user_id )
       `)
       .eq('application_id', applicationId)
       .maybeSingle();

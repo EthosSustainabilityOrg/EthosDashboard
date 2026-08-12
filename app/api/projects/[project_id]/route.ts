@@ -197,7 +197,7 @@ export async function GET(
       .select(`
         user_id,
         project_role_id,
-        users!inner ( first_name, last_name ),
+        users!applications_user_id_fkey ( first_name, last_name ),
         project_roles ( role_name )
       `)
       .eq('project_id', projectId)

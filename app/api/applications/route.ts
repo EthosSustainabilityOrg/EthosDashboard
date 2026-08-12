@@ -176,13 +176,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
 
     const { data: roleData } = await supabaseAdmin
       .from('users')
-      .select('org_role_id, chapter_id')
+      .select('org_role_id')
       .eq('user_id', claims.sub)
       .maybeSingle();
 
     const orgRoleId = roleData?.org_role_id ?? 1;
-    const chapterId = roleData?.chapter_id ?? null;
-    console.log('GET applications - orgRoleId:', orgRoleId, 'chapterId:', chapterId);
 
     const url = new URL(req.url);
     const projectId = url.searchParams.get('project_id');
@@ -190,7 +188,6 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
     const userId = url.searchParams.get('user_id');
     const page = parsePositiveInteger(url.searchParams.get('page'), 1, 10_000);
     const perPage = parsePositiveInteger(url.searchParams.get('per_page'), 20, 50);
-    console.log('GET applications - filters:', { projectId, status, page, perPage });
 
     if (status && !isApplicationStatus(status)) {
       return NextResponse.json(
@@ -223,7 +220,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
           rejection_reason,
           submitted_at,
           updated_at,
-          users!inner ( first_name, last_name ),
+          users!applications_user_id_fkey ( first_name, last_name ),
           projects!inner ( name, created_by ),
           project_roles ( role_name )
         `,
@@ -281,8 +278,6 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
       .order('submitted_at', { ascending: false })
       .range(from, to)
       .returns<RawApplicationRow[]>();
-
-    console.log('GET applications - query error:', error?.message);
 
     if (error) {
       return NextResponse.json(
