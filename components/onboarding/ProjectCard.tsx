@@ -1,6 +1,8 @@
 'use client';
 
 import type { Project } from '@/types/projects';
+import type { ApplicationStatus } from '@/types/applications';
+import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 
@@ -13,7 +15,10 @@ type ProjectWithOptionalShift = Project & {
 
 type ProjectCardProps = {
   project: ProjectWithOptionalShift;
+  openCallAppLevel: string | null;
+  applicationStatus: ApplicationStatus | null;
   onApply: () => void;
+  onJoin: () => void;
 };
 
 function getProjectType(projectTypeId: Project['project_type_id']) {
@@ -32,8 +37,27 @@ function formatShiftDate(startDatetime: string) {
   }).format(new Date(startDatetime));
 }
 
-export function ProjectCard({ project, onApply }: ProjectCardProps) {
+function getStatusBadge(status: ApplicationStatus, isNoApp: boolean) {
+  if (status === 'Pending') {
+    return isNoApp
+      ? { label: 'Joined', variant: 'success' as const }
+      : { label: 'Applied', variant: 'peach' as const };
+  }
+  if (status === 'Approved') return { label: 'Approved', variant: 'success' as const };
+  if (status === 'Rejected') return { label: 'Rejected', variant: 'neutral' as const };
+  return { label: 'Withdrawn', variant: 'neutral' as const };
+}
+
+export function ProjectCard({
+  project,
+  openCallAppLevel,
+  applicationStatus,
+  onApply,
+  onJoin,
+}: ProjectCardProps) {
   const projectType = getProjectType(project.project_type_id);
+  const isNoApp = openCallAppLevel === 'No App';
+  const statusBadge = applicationStatus ? getStatusBadge(applicationStatus, isNoApp) : null;
 
   return (
     <article className="flex min-h-56 flex-col rounded-xl border border-sand bg-cream p-5 transition hover:shadow-md">
@@ -52,9 +76,19 @@ export function ProjectCard({ project, onApply }: ProjectCardProps) {
         <p>Up to {project.max_applications} volunteers</p>
       </div>
 
-      <Button variant="primary" size="sm" className="mt-auto w-full" onClick={onApply}>
-        Apply
-      </Button>
+      <div className="mt-auto pt-4">
+        {statusBadge ? (
+          <Badge label={statusBadge.label} variant={statusBadge.variant} />
+        ) : isNoApp ? (
+          <Button variant="primary" size="sm" className="w-full" onClick={onJoin}>
+            Join
+          </Button>
+        ) : (
+          <Button variant="primary" size="sm" className="w-full" onClick={onApply}>
+            Apply
+          </Button>
+        )}
+      </div>
     </article>
   );
 }
