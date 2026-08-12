@@ -181,6 +181,11 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
   async function addShift() {
     setError(null);
 
+    if (newShift.end_datetime <= newShift.start_datetime) {
+      setError('End time must be after start time');
+      return;
+    }
+
     const headers = await getAuthHeaders();
 
     const response = await fetch(`/api/projects/${project.project_id}/shifts`, {
@@ -213,6 +218,11 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
     if (!draft) return;
 
     setError(null);
+
+    if (draft.end_datetime <= draft.start_datetime) {
+      setError('End time must be after start time');
+      return;
+    }
 
     const headers = await getAuthHeaders();
 

@@ -192,6 +192,10 @@ export function CreateProjectWizard({
 
     // Create shifts
     for (const shift of formData.shifts) {
+      if (shift.end_datetime <= shift.start_datetime) {
+        throw new Error('End time must be after start time');
+      }
+
       const res = await fetch(
         `/api/projects/${nextProjectId}/shifts`,
         {

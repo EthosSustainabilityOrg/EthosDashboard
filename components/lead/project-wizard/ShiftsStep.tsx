@@ -42,6 +42,11 @@ export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {
       return;
     }
 
+    if (draft.end_datetime <= draft.start_datetime) {
+      setError('End time must be after start time');
+      return;
+    }
+
     setError(null);
     onChange([
       ...shifts,

@@ -1,7 +1,11 @@
 'use client';
 
 import Link from 'next/link';
+import { useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import type { Project } from '@/types/projects';
+import type { ApiResponse } from '@/types/api';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
@@ -44,7 +48,53 @@ export function ProjectHeader({
   isLead,
   isBoard,
 }: ProjectHeaderProps) {
+  const router = useRouter();
   const projectTag = getProjectTag(project);
+  const isDraft = !project.is_published && project.closed_at === null;
+  const [isPublishing, setIsPublishing] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
+
+  const supabase = useMemo(
+    () =>
+      createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+      ),
+    [],
+  );
+
+  async function getAuthHeaders() {
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
+
+    return {
+      'Content-Type': 'application/json',
+      ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
+    };
+  }
+
+  async function handlePublish() {
+    setIsPublishing(true);
+    setPublishError(null);
+
+    const headers = await getAuthHeaders();
+
+    const response = await fetch(`/api/projects/${project.project_id}/publish`, {
+      method: 'POST',
+      headers,
+    });
+
+    const body = (await response.json()) as ApiResponse<Project>;
+
+    if (!response.ok || body.error) {
+      setPublishError(body.error?.message ?? 'Unable to publish this project.');
+      setIsPublishing(false);
+      return;
+    }
+
+    router.refresh();
+  }
 
   return (
     <header>
@@ -54,13 +104,22 @@ export function ProjectHeader({
         </Link>
 
         {isLead || isBoard ? (
-          <Link href={`/projects/${project.project_id}/edit`}>
-            <Button variant="ghost" size="sm">
-              Edit
-            </Button>
-          </Link>
+          <div className="flex items-center gap-2">
+            {isDraft ? (
+              <Button variant="primary" size="sm" onClick={handlePublish} disabled={isPublishing}>
+                {isPublishing ? 'Publishing...' : 'Publish'}
+              </Button>
+            ) : null}
+            <Link href={`/projects/${project.project_id}/edit`}>
+              <Button variant="ghost" size="sm">
+                Edit
+              </Button>
+            </Link>
+          </div>
         ) : null}
       </div>
+
+      {publishError ? <p className="mb-4 text-sm text-red-500">{publishError}</p> : null}
 
       <div>
         <h1 className="text-2xl font-bold text-espresso">{project.name}</h1>
