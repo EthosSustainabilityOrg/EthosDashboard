@@ -190,32 +190,53 @@ export function CreateProjectWizard({
   async function createProjectChildren(nextProjectId: string) {
     const headers = await getAuthHeaders();
 
-    await Promise.all([
-      ...formData.shifts.map((shift) =>
-        fetch(`/api/projects/${nextProjectId}/shifts`, {
+    // Create shifts
+    for (const shift of formData.shifts) {
+      const res = await fetch(
+        `/api/projects/${nextProjectId}/shifts`,
+        {
           method: 'POST',
           headers,
           body: JSON.stringify({
             start_datetime: shift.start_datetime,
             end_datetime: shift.end_datetime,
             location: shift.location || null,
-            capacity: toInteger(shift.capacity),
+            capacity: Number(shift.capacity),
             notes: shift.notes || null,
           }),
-        }),
-      ),
-      ...formData.roles.map((role) =>
-        fetch(`/api/projects/${nextProjectId}/roles`, {
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json();
+        console.log('Shift creation failed:', JSON.stringify(body));
+        throw new Error(
+          body?.error?.message ?? 'Failed to create shift'
+        );
+      }
+    }
+
+    // Create roles
+    for (const role of formData.roles) {
+      const res = await fetch(
+        `/api/projects/${nextProjectId}/roles`,
+        {
           method: 'POST',
           headers,
           body: JSON.stringify({
             role_name: role.role_name,
             description: role.description || null,
-            capacity: toInteger(role.capacity),
+            capacity: Number(role.capacity),
           }),
-        }),
-      ),
-    ]);
+        }
+      );
+      if (!res.ok) {
+        const body = await res.json();
+        console.log('Role creation failed:', JSON.stringify(body));
+        throw new Error(
+          body?.error?.message ?? 'Failed to create role'
+        );
+      }
+    }
   }
 
   async function saveDraft() {
