@@ -55,6 +55,7 @@ type ProjectDetailResponse = {
   max_applications: number;
   spots_remaining: number | null;
   is_published: boolean;
+  closed_at: string | null;
   requested_budget: number | null;
   allocated_budget: number | null;
   slack_channel_id: string | null;
@@ -238,6 +239,7 @@ export async function GET(
       max_applications: p.max_applications,
       spots_remaining: spotsRemaining,
       is_published: p.is_published,
+      closed_at: p.closed_at,
       requested_budget: p.requested_budget,
       allocated_budget: p.allocated_budget,
       slack_channel_id: p.slack_channel_id,
