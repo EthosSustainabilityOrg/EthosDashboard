@@ -4,6 +4,7 @@
  * POST /api/applications
  */
 import { NextRequest, NextResponse } from 'next/server';
+import type { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { extractClaims } from '@/lib/auth';
 import type { ApiResponse } from '@/types/api';
@@ -43,6 +44,7 @@ type ProjectForApplication = {
   project_type_id: number;
   is_published: boolean;
   closed_at: string | null;
+  chapter_id: string;
 };
 
 type ExistingApplicationRow = {
@@ -59,6 +61,7 @@ type RawUserApp = {
 
 type AuthContext = {
   claims: JwtClaims;
+  user: User;
 };
 
 const applicationStatuses: ApplicationStatus[] = ['Pending', 'Approved', 'Rejected', 'Withdrawn'];
@@ -139,7 +142,7 @@ async function requireAuth(req: NextRequest): Promise<AuthContext | NextResponse
     );
   }
 
-  return { claims };
+  return { claims, user };
 }
 
 function mapApplication(row: RawApplicationRow): ApplicationListItem {
@@ -308,7 +311,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
     const auth = await requireAuth(req);
     if (auth instanceof NextResponse) return auth;
 
-    const { claims } = auth;
+    const { claims, user } = auth;
     const body = parseCreateApplicationInput(await req.json().catch(() => null));
 
     if (!body) {
@@ -320,7 +323,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
 
     const { data: projectData, error: projectError } = await supabaseAdmin
       .from('projects')
-      .select('project_id, name, created_by, project_type_id, is_published, closed_at')
+      .select('project_id, name, created_by, project_type_id, is_published, closed_at, chapter_id')
       .eq('project_id', body.project_id)
       .maybeSingle();
 
@@ -338,6 +341,65 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
         { data: null, error: { code: 'VALIDATION_ERROR', message: 'Project is not accepting applications' } },
         { status: 400 },
       );
+    }
+
+    // Brand-new Google sign-ins have an auth record and a valid session but no
+    // users row yet — that row is only created here, on first application.
+    // date_of_birth/guardian_name/guardian_email are nullable
+    // (028_users_nullable_for_google_signup.sql): Google doesn't provide any of
+    // them, and they feed compliance flows (age gate, parental consent), so we
+    // don't fabricate values — they're collected and backfilled in a later step.
+    const { data: existingUser } = await supabaseAdmin
+      .from('users')
+      .select('user_id')
+      .eq('user_id', user.id)
+      .maybeSingle();
+
+    if (!existingUser) {
+      const meta = user.user_metadata ?? {};
+      const fullName = typeof meta.full_name === 'string'
+        ? meta.full_name
+        : typeof meta.name === 'string'
+          ? meta.name
+          : '';
+      const nameParts = fullName.trim().split(/\s+/).filter(Boolean);
+      const firstName = nameParts[0] ?? '';
+      const lastName = nameParts.slice(1).join(' ');
+
+      const { error: createUserError } = await supabaseAdmin.from('users').insert({
+        user_id: user.id,
+        first_name: firstName,
+        last_name: lastName,
+        date_of_birth: null,
+        personal_email: user.email ?? '',
+        active_login_email: user.email ?? '',
+        guardian_name: null,
+        guardian_email: null,
+        org_role_id: 1,
+        chapter_id: project.chapter_id,
+        onboarding_complete: false,
+      });
+
+      if (createUserError) {
+        return NextResponse.json(
+          { data: null, error: { code: 'VALIDATION_ERROR', message: createUserError.message } },
+          { status: 400 },
+        );
+      }
+
+      const { error: createOnboardingError } = await supabaseAdmin.from('onboarding').insert({
+        user_id: user.id,
+        slack_connected: false,
+        waiver_status: 'Not Started',
+        parental_consent_status: 'Not Started',
+      });
+
+      if (createOnboardingError) {
+        return NextResponse.json(
+          { data: null, error: { code: 'VALIDATION_ERROR', message: createOnboardingError.message } },
+          { status: 400 },
+        );
+      }
     }
 
     const { count: pendingCount, error: pendingError } = await supabaseAdmin

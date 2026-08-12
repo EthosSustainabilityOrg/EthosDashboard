@@ -18,8 +18,12 @@ export interface User {
   user_id: string;
   first_name: string;
   last_name: string;
-  /** Used for COPPA minimum-age check (14). ISO 8601 date string. */
-  date_of_birth: string;
+  /**
+   * Used for COPPA minimum-age check (14). ISO 8601 date string.
+   * Null until collected — Google sign-up doesn't provide it; the users row
+   * auto-created on first application starts with this unset.
+   */
+  date_of_birth: string | null;
   /** Gmail used at signup. UNIQUE. */
   personal_email: string;
   /** Assigned manually by Board after approval. Null until created. UNIQUE. */
@@ -28,10 +32,10 @@ export interface User {
   active_login_email: string;
   /** Slack user ID stored after OAuth connection. UNIQUE. */
   slack_user_id: string | null;
-  /** Full name of parent or legal guardian. */
-  guardian_name: string;
-  /** Guardian email — receives parental consent form. */
-  guardian_email: string;
+  /** Full name of parent or legal guardian. Null until collected. */
+  guardian_name: string | null;
+  /** Guardian email — receives parental consent form. Null until collected. */
+  guardian_email: string | null;
   /** Guardian phone number. Optional. */
   guardian_phone: string | null;
   /** FK → org_roles. 1 = Member, 2 = Project Lead, 3 = Board. */
