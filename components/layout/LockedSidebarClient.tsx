@@ -2,6 +2,7 @@
 
 import type * as React from 'react';
 import { useRouter } from 'next/navigation';
+import { createBrowserClient } from '@supabase/ssr';
 import { LockedSidebarLayout } from './LockedSidebarLayout';
 
 type LockedSidebarClientProps = {
@@ -20,8 +21,13 @@ export function LockedSidebarClient({
   return (
     <LockedSidebarLayout
       user={{ firstName, lastName }}
-      onAvatarClick={() => {
-        router.push('/account');
+      onAvatarClick={async () => {
+        const supabase = createBrowserClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL ?? '',
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ?? '',
+        );
+        await supabase.auth.signOut();
+        router.push('/login');
       }}
     >
       {children}

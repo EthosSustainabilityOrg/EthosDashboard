@@ -54,7 +54,11 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     .from('users')
     .select('first_name, last_name, org_role_id')
     .eq('user_id', authUser.id)
-    .single();
+    .maybeSingle();
+
+  if (!data) {
+    redirect('/projects');
+  }
 
   const user = data as CurrentUser | null;
   const orgRoleId = user?.org_role_id === 2 || user?.org_role_id === 3 ? user.org_role_id : 1;
