@@ -201,9 +201,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ta
       );
     }
 
-    if (orgRoleId === 1 && !projectId) {
+    if (orgRoleId === 1 && !projectId && !assignedTo) {
       return NextResponse.json(
-        { data: null, error: { code: 'FORBIDDEN', message: 'Members must provide project_id' } },
+        { data: null, error: { code: 'FORBIDDEN', message: 'Members must provide project_id or assigned_to' } },
         { status: 403 }
       );
     }
@@ -215,7 +215,13 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ta
       );
     }
 
-    const authorizedProjectIds = await getAuthorizedProjectIds(claims.sub, orgRoleId, projectId);
+    // Member fetching their own tasks by assigned_to (no project_id): assignedTo is
+    // already verified to equal claims.sub above, and the assigned_to filter below
+    // scopes the query to their own tasks, so no project-based restriction is needed.
+    const authorizedProjectIds =
+      orgRoleId === 1 && !projectId && assignedTo
+        ? null
+        : await getAuthorizedProjectIds(claims.sub, orgRoleId, projectId);
 
     if (authorizedProjectIds !== null && authorizedProjectIds.length === 0) {
       return NextResponse.json({

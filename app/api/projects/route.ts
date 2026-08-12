@@ -138,18 +138,26 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
 
     } else if (orgRoleId === 2) {
       // Project Lead: Never closed. Own chapter published + Open calls published + Own unpublished drafts
-      query = query.is('closed_at', null).or(
-        `and(chapter_id.eq.${chapterId},is_published.eq.true),` +
-        `and(is_open_call.eq.true,is_published.eq.true),` +
-        `and(created_by.eq.${claims.sub},is_published.eq.false)`
-      );
+      const leadFilters = [
+        `and(is_open_call.eq.true,is_published.eq.true)`,
+        `and(created_by.eq.${claims.sub},is_published.eq.false)`,
+      ];
+      if (chapterId) {
+        leadFilters.unshift(`and(chapter_id.eq.${chapterId},is_published.eq.true)`);
+      }
+      query = query.is('closed_at', null).or(leadFilters.join(','));
 
     } else {
       // Member: Never closed. Own chapter published + Open calls published
-      query = query.is('closed_at', null).or(
-        `and(chapter_id.eq.${chapterId},is_published.eq.true),` +
-        `and(is_open_call.eq.true,is_published.eq.true)`
-      );
+      // chapterId is null when the caller has no users row yet (e.g. brand-new
+      // sign-in before their first application) — chapter_id is NOT NULL in the
+      // schema, so skip the chapter clause rather than emit "chapter_id.eq.null",
+      // which Postgres rejects as invalid UUID syntax and returns a 400 for.
+      const memberFilters = [`and(is_open_call.eq.true,is_published.eq.true)`];
+      if (chapterId) {
+        memberFilters.unshift(`and(chapter_id.eq.${chapterId},is_published.eq.true)`);
+      }
+      query = query.is('closed_at', null).or(memberFilters.join(','));
     }
 
     // 5. Apply Query String Filters
@@ -185,6 +193,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
 
     // Explicit type casting via returns() avoids `any` entirely
     const { data, error, count } = await query.returns<RawProjectRow[]>();
+
+    console.log('GET projects error:', error?.message);
 
     if (error) {
       return NextResponse.json(
