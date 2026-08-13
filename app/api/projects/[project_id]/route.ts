@@ -98,18 +98,14 @@ export async function GET(
         { status: 401 }
       );
     }
-    const { data: userData, error: userError } = await supabaseAdmin
+    const { data: userData } = await supabaseAdmin
       .from('users')
       .select('org_role_id, chapter_id')
       .eq('user_id', user.id)
-      .single();
+      .maybeSingle();
 
-    if (userError || !userData) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'User profile not found' } },
-        { status: 401 }
-      );
-    }
+    const orgRoleId = userData?.org_role_id ?? 1;
+    const chapterId = userData?.chapter_id ?? null;
 
     const { project_id: projectId } = await params;
 
@@ -150,18 +146,26 @@ export async function GET(
     }
 
     // 3. Enforce Visibility Scope
-    if (userData.org_role_id !== 3) {
+    if (orgRoleId !== 3) {
       if (p.closed_at !== null) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Project is closed' } },
           { status: 403 }
         );
       }
-      
-      if (userData.org_role_id === 2) {
+
+      if (chapterId === null) {
+        // Chapterless new user — treat like a public viewer of published projects
+        if (!p.is_published) {
+          return NextResponse.json(
+            { data: null, error: { code: 'FORBIDDEN', message: 'Cannot view unpublished projects' } },
+            { status: 403 }
+          );
+        }
+      } else if (orgRoleId === 2) {
         // Project Lead
         const canView =
-          p.chapter_id === userData.chapter_id ||
+          p.chapter_id === chapterId ||
           p.is_open_call ||
           p.created_by === user.id;
         if (!canView) {
@@ -180,7 +184,7 @@ export async function GET(
       } else {
         // Member
         const canView =
-          (p.chapter_id === userData.chapter_id && p.is_published) ||
+          (p.chapter_id === chapterId && p.is_published) ||
           (p.is_open_call && p.is_published);
         if (!canView) {
           return NextResponse.json(

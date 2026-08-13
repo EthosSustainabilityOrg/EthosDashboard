@@ -18,10 +18,6 @@ type AccountUser = {
   created_at: string;
 };
 
-type UserMeResponse = {
-  user: AccountUser;
-};
-
 function roleLabel(roleId: AccountUser['org_role_id'], roleName?: string) {
   if (roleName) return roleName;
   if (roleId === 3) return 'Board';
@@ -71,9 +67,9 @@ export default function AccountPage() {
     async function loadUser() {
       const headers = await getAuthHeaders();
       const response = await fetch('/api/users/me', { headers });
-      const body = (await response.json()) as ApiResponse<UserMeResponse>;
+      const body = (await response.json()) as ApiResponse<AccountUser>;
 
-      setUser(body.data?.user ?? null);
+      setUser(body.data ?? null);
       setIsLoading(false);
     }
 
