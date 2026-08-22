@@ -37,6 +37,24 @@ export default async function PendingPage() {
     redirect('/login');
   }
 
+  const { data: userData } = await supabase
+    .from('users')
+    .select('org_role_id, onboarding_complete')
+    .eq('user_id', session.user.id)
+    .maybeSingle();
+
+  if (!userData) {
+    redirect('/projects');
+  }
+
+  if (userData.org_role_id !== 1) {
+    redirect('/home');
+  }
+
+  if (userData.onboarding_complete) {
+    redirect('/home');
+  }
+
   const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
   const host = headerStore.get('host');
 

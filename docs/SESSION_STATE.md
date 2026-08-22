@@ -152,3 +152,4 @@ RLS policies still use JWT claims and should remain as-is.
 - Set `OPENSIGN_WAIVER_TEMPLATE_ID` env var in Vercel
 - Set `OPENSIGN_CONSENT_TEMPLATE_ID` env var in Vercel
 - Confirm `RESEND_FROM_ADDRESS` is correct
+- When manually creating Board/Lead users in Supabase, always set `onboarding_complete = true`
