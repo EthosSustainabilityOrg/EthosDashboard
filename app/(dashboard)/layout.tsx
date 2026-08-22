@@ -61,7 +61,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     redirect('/projects');
   }
 
-  if (!data.onboarding_complete) {
+  if (!data.onboarding_complete && data.org_role_id === 1) {
     redirect('/pending');
   }
 
