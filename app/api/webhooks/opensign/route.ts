@@ -284,6 +284,33 @@ export async function POST(req: NextRequest): Promise<NextResponse<OpenSignWebho
       .eq('onboarding_id', onboarding.onboarding_id);
 
     if (preReviewComplete) {
+      // Consent can land after approval. The approve route only unlocks the app when
+      // completed_at is already set, so close the other ordering here.
+      const { data: approvedApp } = await supabaseAdmin
+        .from('applications')
+        .select('application_id')
+        .eq('user_id', onboarding.user_id)
+        .eq('status', 'Approved')
+        .limit(1)
+        .maybeSingle();
+
+      if (approvedApp) {
+        const { error: unlockError } = await supabaseAdmin
+          .from('users')
+          .update({ onboarding_complete: true })
+          .eq('user_id', onboarding.user_id);
+
+        if (unlockError) {
+          await supabaseAdmin.from('system_logs').insert({
+            integration: 'OpenSign',
+            error_type: 'Onboarding Unlock Failed',
+            error_message: `Consent signed for approved application ${approvedApp.application_id} but failed to set onboarding_complete: ${unlockError.message}`,
+            affected_user_id: onboarding.user_id,
+            resolved: false
+          });
+        }
+      }
+
       await notifyProjectLeadsReadyForReview(onboarding.user_id, now);
     }
 
