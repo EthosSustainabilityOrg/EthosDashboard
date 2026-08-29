@@ -51,10 +51,6 @@ export default async function PendingPage() {
     redirect('/home');
   }
 
-  if (userData.onboarding_complete) {
-    redirect('/home');
-  }
-
   const protocol = headerStore.get('x-forwarded-proto') ?? 'http';
   const host = headerStore.get('host');
 
@@ -92,8 +88,14 @@ export default async function PendingPage() {
     redirect('/rejected');
   }
 
+  // Screen 1.5 — the welcome screen must win over the /home redirect below, otherwise a
+  // newly approved member never sees it.
   if (onboardingBody.data.completed_at && latestApplication?.status === 'Approved') {
     redirect('/approved');
+  }
+
+  if (userData.onboarding_complete) {
+    redirect('/home');
   }
 
   return (

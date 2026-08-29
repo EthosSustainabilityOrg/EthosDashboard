@@ -194,9 +194,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
     // Explicit type casting via returns() avoids `any` entirely
     const { data, error, count } = await query.returns<RawProjectRow[]>();
 
-    console.log('GET projects error:', error?.message);
-
     if (error) {
+      console.log('GET projects error:', error.message);
       return NextResponse.json(
         { data: null, error: { code: 'VALIDATION_ERROR', message: error.message } },
         { status: 400 }

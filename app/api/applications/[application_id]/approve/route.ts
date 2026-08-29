@@ -122,7 +122,34 @@ export async function PATCH(
 
     const applicantId = updatedApp.user_id;
 
-    // 7. Profile & Preference Initialization (Fire-and-forget logic using upsert ignoring duplicates)
+    // 7. Unlock the App (Chunk 1 checklist step 6 — project lead review is the final step).
+    // Guard: only unlock once the waiver, parental consent, and orientation are all done,
+    // which the onboarding record records as completed_at. All members are minors, so a
+    // missing parental consent must never result in full app access.
+    const { data: onboardingRow } = await supabaseAdmin
+      .from('onboarding')
+      .select('completed_at')
+      .eq('user_id', applicantId)
+      .maybeSingle();
+
+    if (onboardingRow?.completed_at) {
+      const { error: onboardingError } = await supabaseAdmin
+        .from('users')
+        .update({ onboarding_complete: true })
+        .eq('user_id', applicantId);
+
+      if (onboardingError) {
+        await supabaseAdmin.from('system_logs').insert({
+          integration: 'Supabase',
+          error_type: 'Onboarding Unlock Failed',
+          error_message: `Approved application ${applicationId} but failed to set onboarding_complete: ${onboardingError.message}`,
+          affected_user_id: applicantId,
+          resolved: false
+        });
+      }
+    }
+
+    // 8. Profile & Preference Initialization (Fire-and-forget logic using upsert ignoring duplicates)
     void supabaseAdmin
       .from('notification_preferences')
       .upsert({ user_id: applicantId }, { onConflict: 'user_id', ignoreDuplicates: true });
@@ -131,7 +158,7 @@ export async function PATCH(
       .from('directory_profiles')
       .upsert({ user_id: applicantId }, { onConflict: 'user_id', ignoreDuplicates: true });
 
-    // 8. Add Applicant to Slack Channel
+    // 9. Add Applicant to Slack Channel
     const slackUserId = userRow?.slack_user_id;
     const slackChannelId = projectRow?.slack_channel_id;
 
@@ -148,7 +175,7 @@ export async function PATCH(
       });
     }
 
-    // 9. Send Notification
+    // 10. Send Notification
     void supabaseAdmin.from('notifications').insert({
       user_id: applicantId,
       channel: 'InApp',
@@ -159,7 +186,7 @@ export async function PATCH(
       status: 'Sent'
     });
 
-    // 10. Return Response
+    // 11. Return Response
     return NextResponse.json({
       data: updatedApp as Application,
       error: null

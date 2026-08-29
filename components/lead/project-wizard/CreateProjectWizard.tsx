@@ -212,7 +212,6 @@ export function CreateProjectWizard({
       );
       if (!res.ok) {
         const body = await res.json();
-        console.log('Shift creation failed:', JSON.stringify(body));
         throw new Error(
           body?.error?.message ?? 'Failed to create shift'
         );
@@ -235,7 +234,6 @@ export function CreateProjectWizard({
       );
       if (!res.ok) {
         const body = await res.json();
-        console.log('Role creation failed:', JSON.stringify(body));
         throw new Error(
           body?.error?.message ?? 'Failed to create role'
         );
