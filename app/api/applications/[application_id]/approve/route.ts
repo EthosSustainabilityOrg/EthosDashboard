@@ -6,6 +6,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { extractClaims } from '@/lib/auth';
 import { inviteToChannel } from '@/lib/slack';
+import { unlockOnboardingIfApproved } from '@/lib/onboarding';
 import type { ApiResponse } from '@/types/api';
 import type { Application } from '@/types/applications';
 
@@ -123,31 +124,9 @@ export async function PATCH(
     const applicantId = updatedApp.user_id;
 
     // 7. Unlock the App (Chunk 1 checklist step 6 — project lead review is the final step).
-    // Guard: only unlock once the waiver, parental consent, and orientation are all done,
-    // which the onboarding record records as completed_at. All members are minors, so a
-    // missing parental consent must never result in full app access.
-    const { data: onboardingRow } = await supabaseAdmin
-      .from('onboarding')
-      .select('completed_at')
-      .eq('user_id', applicantId)
-      .maybeSingle();
-
-    if (onboardingRow?.completed_at) {
-      const { error: onboardingError } = await supabaseAdmin
-        .from('users')
-        .update({ onboarding_complete: true })
-        .eq('user_id', applicantId);
-
-      if (onboardingError) {
-        await supabaseAdmin.from('system_logs').insert({
-          integration: 'Supabase',
-          error_type: 'Onboarding Unlock Failed',
-          error_message: `Approved application ${applicationId} but failed to set onboarding_complete: ${onboardingError.message}`,
-          affected_user_id: applicantId,
-          resolved: false
-        });
-      }
-    }
+    // No-op until the onboarding record is complete; the consent webhook and orientation
+    // route call this too, so whichever half lands last performs the unlock.
+    await unlockOnboardingIfApproved(applicantId, 'Supabase');
 
     // 8. Profile & Preference Initialization (Fire-and-forget logic using upsert ignoring duplicates)
     void supabaseAdmin

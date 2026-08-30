@@ -5,6 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { extractClaims } from '@/lib/auth';
+import { unlockOnboardingIfApproved } from '@/lib/onboarding';
 import type { ApiResponse } from '@/types/api';
 import type { Onboarding, OrientationProgress } from '@/types/onboarding';
 
@@ -157,14 +158,27 @@ export async function PATCH(req: NextRequest): Promise<NextResponse<ApiResponse<
       [rawBody.chapter]: rawBody.completed,
     };
 
+    const orientationCompletedAt = allChaptersCompleted(updatedProgress)
+      ? now
+      : onboarding.orientation_completed_at;
+
+    // Orientation is normally finished before the waiver unlocks, but a member can
+    // re-open a chapter and re-complete it after signing. When that makes orientation
+    // the last outstanding step, this is where onboarding finishes.
+    // TODO: re-enable Slack gate when Slack OAuth is wired
+    const preReviewComplete =
+      // onboarding.slack_connected &&
+      orientationCompletedAt !== null &&
+      onboarding.waiver_status === 'Signed' &&
+      onboarding.parental_consent_status === 'Signed';
+
     const { data: updatedOnboarding, error: updateError } = await supabaseAdmin
       .from('onboarding')
       .update({
         orientation_progress: JSON.stringify(updatedProgress),
         orientation_started_at: onboarding.orientation_started_at ?? now,
-        orientation_completed_at: allChaptersCompleted(updatedProgress)
-          ? now
-          : onboarding.orientation_completed_at,
+        orientation_completed_at: orientationCompletedAt,
+        completed_at: preReviewComplete ? (onboarding.completed_at ?? now) : onboarding.completed_at,
       })
       .eq('onboarding_id', onboarding.onboarding_id)
       .select(`
@@ -196,6 +210,10 @@ export async function PATCH(req: NextRequest): Promise<NextResponse<ApiResponse<
         },
         { status: 400 }
       );
+    }
+
+    if (preReviewComplete) {
+      await unlockOnboardingIfApproved(onboarding.user_id, 'Supabase');
     }
 
     return NextResponse.json({
