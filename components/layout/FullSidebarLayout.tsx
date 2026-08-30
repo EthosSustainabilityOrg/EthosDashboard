@@ -11,6 +11,9 @@ type FullSidebarLayoutProps = {
   avatarSlot: React.ReactNode;
   orgRoleId: OrgRoleId;
   unresolvedLogCount: number;
+  firstName: string;
+  lastName: string;
+  email?: string;
 };
 
 export function FullSidebarLayout({
@@ -18,6 +21,9 @@ export function FullSidebarLayout({
   avatarSlot,
   orgRoleId,
   unresolvedLogCount,
+  firstName,
+  lastName,
+  email,
 }: FullSidebarLayoutProps) {
   return (
     <div className="flex min-h-screen bg-cream text-espresso">
@@ -47,7 +53,15 @@ export function FullSidebarLayout({
             </svg>
           </div>
 
-          {avatarSlot}
+          <div className="flex items-center gap-3">
+            {avatarSlot}
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-cream">
+                {firstName} {lastName}
+              </p>
+              {email ? <p className="truncate text-xs text-cream/60">{email}</p> : null}
+            </div>
+          </div>
         </div>
       </aside>
 

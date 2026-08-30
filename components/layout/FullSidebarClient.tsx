@@ -13,6 +13,7 @@ type FullSidebarClientProps = {
   children: React.ReactNode;
   firstName: string;
   lastName: string;
+  email?: string;
   orgRoleId: OrgRoleId;
   unresolvedLogCount: number;
 };
@@ -21,6 +22,7 @@ export function FullSidebarClient({
   children,
   firstName,
   lastName,
+  email,
   orgRoleId,
   unresolvedLogCount,
 }: FullSidebarClientProps) {
@@ -52,6 +54,9 @@ export function FullSidebarClient({
     <FullSidebarLayout
       orgRoleId={orgRoleId}
       unresolvedLogCount={unresolvedLogCount}
+      firstName={firstName}
+      lastName={lastName}
+      email={email}
       avatarSlot={
         <div ref={menuRef} className="relative">
           {showMenu ? (

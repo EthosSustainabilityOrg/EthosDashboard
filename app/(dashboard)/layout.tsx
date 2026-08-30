@@ -11,6 +11,7 @@ type DashboardLayoutProps = {
 type CurrentUser = {
   first_name: string;
   last_name: string;
+  active_login_email: string;
   org_role_id: number;
   onboarding_complete: boolean;
 };
@@ -53,7 +54,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
 
   const { data } = await supabase
     .from('users')
-    .select('first_name, last_name, org_role_id, onboarding_complete')
+    .select('first_name, last_name, active_login_email, org_role_id, onboarding_complete')
     .eq('user_id', authUser.id)
     .maybeSingle();
 
@@ -82,6 +83,7 @@ export default async function DashboardLayout({ children }: DashboardLayoutProps
     <FullSidebarClient
       firstName={user?.first_name ?? 'Ethos'}
       lastName={user?.last_name ?? 'Member'}
+      email={user?.active_login_email}
       orgRoleId={orgRoleId}
       unresolvedLogCount={unresolvedLogCount}
     >
