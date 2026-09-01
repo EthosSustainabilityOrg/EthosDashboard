@@ -12,6 +12,7 @@ import { Input } from '@/components/ui/Input';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
 import { Toggle } from '@/components/ui/Toggle';
+import { formatDate } from '@/lib/format-date';
 
 type EditProjectFormProps = {
   project: Project;
@@ -87,12 +88,12 @@ function toRoleDraft(role: ProjectRole): RoleDraft {
 }
 
 function formatShiftLabel(shift: Shift) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(shift.start_datetime), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(shift.start_datetime));
+  });
 }
 
 export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps) {

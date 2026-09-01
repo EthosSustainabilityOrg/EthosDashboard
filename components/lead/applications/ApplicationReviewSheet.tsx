@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { formatDate } from '@/lib/format-date';
 
 type ReviewApplication = Application & {
   applicant_name: string;
@@ -31,13 +32,13 @@ function statusVariant(status: Application['status']) {
 function formatDateTime(value: string | null) {
   if (!value) return null;
 
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 export function ApplicationReviewSheet({

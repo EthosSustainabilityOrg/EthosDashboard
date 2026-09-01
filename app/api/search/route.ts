@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { extractClaims } from '@/lib/auth';
 import type { ApiResponse } from '@/types/api';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type SearchType = 'Project' | 'File' | 'Member' | 'Task' | 'Announcement';
 
@@ -92,12 +93,11 @@ function toTsQuery(value: string): string {
 }
 
 function formatDate(value: string): string {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-    timeZone: 'UTC',
-  }).format(new Date(value));
+  });
 }
 
 async function requireUser(req: NextRequest): Promise<AuthContext | null> {

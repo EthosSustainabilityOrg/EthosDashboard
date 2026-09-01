@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { createServerClient } from '@supabase/ssr';
 import { VolunteerFlagsPanel } from '@/components/board/VolunteerFlagsPanel';
+import { formatDate } from '@/lib/format-date';
 
 type UserName = {
   first_name: string;
@@ -45,13 +46,13 @@ function getShiftDate(value: ShiftInfo | ShiftInfo[] | null) {
   const shift = Array.isArray(value) ? value[0] : value;
   if (!shift) return null;
 
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(shift.start_datetime), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(shift.start_datetime));
+  });
 }
 
 export default async function BoardFlagsPage() {

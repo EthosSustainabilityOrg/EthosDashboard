@@ -9,6 +9,7 @@ import type { Shift } from '@/types/shifts';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
+import { formatDate } from '@/lib/format-date';
 
 type ApplicationFormUser = {
   first_name: string;
@@ -45,15 +46,15 @@ function formatShift(shift: Shift) {
   const start = new Date(shift.start_datetime);
   const end = new Date(shift.end_datetime);
 
-  return `${new Intl.DateTimeFormat('en-US', {
+  return `${formatDate(start, {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(start)} - ${new Intl.DateTimeFormat('en-US', {
+  })} - ${formatDate(end, {
     hour: 'numeric',
     minute: '2-digit',
-  }).format(end)}`;
+  })}`;
 }
 
 export function ApplicationForm({

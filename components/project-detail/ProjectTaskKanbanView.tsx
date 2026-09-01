@@ -2,6 +2,7 @@
 
 import type { Task } from '@/types/tasks';
 import { Badge } from '@/components/ui/Badge';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type ProjectTask = Task & {
   project_name?: string;
@@ -32,10 +33,10 @@ function initials(name: string) {
 
 function formatDate(value: string | null) {
   if (!value) return 'No due date';
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 export function ProjectTaskKanbanView({ tasks, onTaskClick }: ProjectTaskKanbanViewProps) {

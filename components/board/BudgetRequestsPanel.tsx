@@ -3,6 +3,7 @@
 import { useMemo, useState } from 'react';
 import { BudgetReviewSheet } from '@/components/board/BudgetReviewSheet';
 import { Chip } from '@/components/ui/Chip';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type BudgetFilter = 'All' | 'Pending' | 'Reviewed';
 
@@ -32,11 +33,11 @@ function formatMoney(value: number) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function matchesFilter(project: BudgetProject, filter: BudgetFilter) {

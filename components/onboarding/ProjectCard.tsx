@@ -5,6 +5,7 @@ import type { ApplicationStatus } from '@/types/applications';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
+import { formatDate } from '@/lib/format-date';
 
 type ProjectWithOptionalShift = Project & {
   upcoming_shift?: {
@@ -29,12 +30,12 @@ function getProjectType(projectTypeId: Project['project_type_id']) {
 }
 
 function formatShiftDate(startDatetime: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(startDatetime), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(startDatetime));
+  });
 }
 
 function getStatusBadge(status: ApplicationStatus, isNoApp: boolean) {

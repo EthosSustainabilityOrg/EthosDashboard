@@ -1,4 +1,5 @@
 import type { ProjectUpdate } from '@/types/project-updates';
+import { formatDate } from '@/lib/format-date';
 
 type ProjectUpdatesTabProps = {
   updates: ProjectUpdate[];
@@ -6,12 +7,12 @@ type ProjectUpdatesTabProps = {
 };
 
 function formatTimestamp(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 function sortUpdates(updates: ProjectUpdate[]) {

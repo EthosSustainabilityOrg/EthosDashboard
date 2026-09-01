@@ -3,6 +3,7 @@
 import type { Task } from '@/types/tasks';
 import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type WorkTask = Task & {
   project_name: string;
@@ -22,10 +23,10 @@ const columns: Task['status'][] = [
 
 function formatDate(value: string | null) {
   if (!value) return 'No due date';
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 export function TaskKanbanView({ tasks }: TaskKanbanViewProps) {

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import type { Project } from '@/types/projects';
 import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
+import { formatDate } from '@/lib/format-date';
 
 type LeadProjectCardProps = {
   project: Project;
@@ -40,12 +41,12 @@ function getProjectTag(project: Project) {
 }
 
 function formatShiftDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 function formatMoney(value: number) {

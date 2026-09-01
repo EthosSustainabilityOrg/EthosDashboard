@@ -7,6 +7,7 @@ import type { ApiResponse } from '@/types/api';
 import type { Task } from '@/types/tasks';
 import { Tag } from '@/components/ui/Tag';
 import { MetricCard } from '@/components/dashboard/MetricCard';
+import { formatDate } from '@/lib/format-date';
 
 type CurrentUser = {
   first_name: string;
@@ -55,26 +56,26 @@ function getChapterName(user: CurrentUser | null) {
 }
 
 function formatMonthYear(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'long',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function formatShiftDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 function formatAnnouncementDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function getApprovedProject(application: ApprovedApplication | null) {

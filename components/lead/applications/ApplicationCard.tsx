@@ -2,6 +2,7 @@
 
 import type { Application } from '@/types/applications';
 import { Badge } from '@/components/ui/Badge';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type ApplicationCardApplication = Application & {
   applicant_name: string;
@@ -19,11 +20,11 @@ function statusVariant(status: Application['status']) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 export function ApplicationCard({ application, onClick }: ApplicationCardProps) {

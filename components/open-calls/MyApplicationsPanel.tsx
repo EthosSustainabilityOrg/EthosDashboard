@@ -7,6 +7,7 @@ import type { ApplicationStatus } from '@/types/applications';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import type { OpenCallApplication } from '@/components/open-calls/OpenCallsBoard';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type MyApplicationsPanelProps = {
   applications: OpenCallApplication[];
@@ -20,11 +21,11 @@ function statusVariant(status: ApplicationStatus) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 export function MyApplicationsPanel({ applications, onWithdraw }: MyApplicationsPanelProps) {

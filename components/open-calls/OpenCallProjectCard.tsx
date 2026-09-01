@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Tag } from '@/components/ui/Tag';
 import type { OpenCallProject } from '@/components/open-calls/OpenCallsBoard';
+import { formatDate } from '@/lib/format-date';
 
 type OpenCallProjectCardProps = {
   project: OpenCallProject;
@@ -28,12 +29,12 @@ function statusVariant(status: ApplicationStatus) {
 }
 
 function formatShift(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 export function OpenCallProjectCard({

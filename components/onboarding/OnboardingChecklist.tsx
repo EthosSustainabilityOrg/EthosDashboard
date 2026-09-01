@@ -8,6 +8,7 @@ import type { ApiResponse } from '@/types/api';
 import type { Onboarding } from '@/types/onboarding';
 import { Button } from '@/components/ui/Button';
 import { StatusDot } from '@/components/ui/StatusDot';
+import { formatDate } from '@/lib/format-date';
 
 type OnboardingChecklistProps = {
   onboarding: Onboarding;
@@ -45,12 +46,12 @@ function ClockIcon() {
 }
 
 function formatNextAllowedAt(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 export function OnboardingChecklist({ onboarding }: OnboardingChecklistProps) {

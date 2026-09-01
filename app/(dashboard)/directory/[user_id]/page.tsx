@@ -8,6 +8,7 @@ import type { OrgRoleId } from '@/types/auth';
 import { BoardProfileActions } from '@/components/directory/BoardProfileActions';
 import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type DirectoryBadge = {
   badge_id: string;
@@ -76,11 +77,11 @@ function projectTagColor(typeName: string) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function getVotySubtitle(badges: DirectoryBadge[]) {

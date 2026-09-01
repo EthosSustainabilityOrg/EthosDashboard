@@ -1,17 +1,18 @@
 import type { Announcement } from '@/types/announcements';
+import { formatDate } from '@/lib/format-date';
 
 type AnnouncementCardProps = {
   announcement: Announcement;
 };
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 export function AnnouncementCard({ announcement }: AnnouncementCardProps) {

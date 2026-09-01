@@ -1,4 +1,5 @@
 import type { Shift } from '@/types/shifts';
+import { formatDate } from '@/lib/format-date';
 
 type ShiftCardProps = {
   shift: Shift;
@@ -8,21 +9,21 @@ function formatDateRange(shift: Shift) {
   const start = new Date(shift.start_datetime);
   const end = new Date(shift.end_datetime);
 
-  const date = new Intl.DateTimeFormat('en-US', {
+  const date = formatDate(start, {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(start);
+  });
 
-  const startTime = new Intl.DateTimeFormat('en-US', {
+  const startTime = formatDate(start, {
     hour: 'numeric',
     minute: '2-digit',
-  }).format(start);
+  });
 
-  const endTime = new Intl.DateTimeFormat('en-US', {
+  const endTime = formatDate(end, {
     hour: 'numeric',
     minute: '2-digit',
-  }).format(end);
+  });
 
   return `${date} · ${startTime} - ${endTime}`;
 }

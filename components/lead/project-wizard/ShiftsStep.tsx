@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Textarea } from '@/components/ui/Textarea';
 import type { WizardShift } from './CreateProjectWizard';
+import { formatDate } from '@/lib/format-date';
 
 type ShiftsStepProps = {
   shifts: WizardShift[];
@@ -29,7 +30,11 @@ function formatDateRange(shift: WizardShift) {
   const start = new Date(shift.start_datetime);
   const end = new Date(shift.end_datetime);
 
-  return `${start.toLocaleString()} - ${end.toLocaleTimeString()}`;
+  const date = formatDate(start, { month: 'short', day: 'numeric', year: 'numeric' });
+  const startTime = formatDate(start, { hour: 'numeric', minute: '2-digit' });
+  const endTime = formatDate(end, { hour: 'numeric', minute: '2-digit' });
+
+  return `${date} · ${startTime} - ${endTime}`;
 }
 
 export function ShiftsStep({ shifts, onChange }: ShiftsStepProps) {

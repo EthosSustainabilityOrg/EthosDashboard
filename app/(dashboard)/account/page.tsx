@@ -6,6 +6,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import type { ApiResponse } from '@/types/api';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/lib/format-date';
 
 type AccountUser = {
   user_id: string;
@@ -32,10 +33,10 @@ function roleVariant(roleId: AccountUser['org_role_id']) {
 }
 
 function formatMemberSince(date: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(date), {
     month: 'long',
     year: 'numeric',
-  }).format(new Date(date));
+  });
 }
 
 export default function AccountPage() {

@@ -3,6 +3,7 @@
 import type { Task } from '@/types/tasks';
 import { Badge } from '@/components/ui/Badge';
 import { Tag } from '@/components/ui/Tag';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type GroupBy = 'project' | 'status' | 'due_date';
 type OrderBy = 'due_date' | 'updated' | 'alpha';
@@ -34,10 +35,10 @@ function isOverdue(dueDate: string | null) {
 
 function formatDate(value: string | null) {
   if (!value) return 'No due date';
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function groupLabel(task: WorkTask, groupBy: GroupBy) {

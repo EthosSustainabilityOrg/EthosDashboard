@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import type { Project } from '@/types/projects';
 import { Tag } from '@/components/ui/Tag';
+import { formatDate } from '@/lib/format-date';
 
 type ProjectCardProject = Project & {
   chapter_name: string;
@@ -31,12 +32,12 @@ function getProjectTag(project: ProjectCardProject) {
 }
 
 function formatShiftDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 export function MyProjectCard({

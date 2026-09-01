@@ -20,18 +20,21 @@ export default async function RootPage() {
     },
   );
 
+  // getSession() rather than getUser(): middleware skips the root path, and this page
+  // only picks a redirect target. RLS still validates the JWT on the query below, and
+  // every destination re-checks auth on arrival.
   const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
+    data: { session },
+  } = await supabase.auth.getSession();
 
-  if (!authUser) {
+  if (!session) {
     redirect('/login');
   }
 
   const { data: user } = await supabase
     .from('users')
     .select('onboarding_complete')
-    .eq('user_id', authUser.id)
+    .eq('user_id', session.user.id)
     .maybeSingle();
 
   if (!user) {

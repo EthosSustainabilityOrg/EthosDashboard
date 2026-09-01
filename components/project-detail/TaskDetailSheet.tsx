@@ -6,6 +6,7 @@ import type { ApiResponse } from '@/types/api';
 import type { Task } from '@/types/tasks';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type ProjectTask = Task & {
   project_name?: string;
@@ -30,22 +31,22 @@ const statusOptions = [
 ];
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 function formatDate(value: string | null) {
   if (!value) return null;
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 export function TaskDetailSheet({

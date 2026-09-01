@@ -5,6 +5,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import type { DonationListItem } from '@/components/fundraising/FundraisingDashboard';
 import { Button } from '@/components/ui/Button';
 import { ConfirmDialog } from '@/components/ui/ConfirmDialog';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type DonationListProps = {
   donations: DonationListItem[];
@@ -23,11 +24,11 @@ function formatMoney(value: number) {
 }
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 export function DonationList({ donations, isBoard, onAdd, onEdit, onDeleted }: DonationListProps) {

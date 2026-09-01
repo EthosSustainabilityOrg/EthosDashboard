@@ -6,6 +6,7 @@ import type { Shift } from '@/types/shifts';
 import { Button } from '@/components/ui/Button';
 import { Select } from '@/components/ui/Select';
 import { Textarea } from '@/components/ui/Textarea';
+import { formatDate } from '@/lib/format-date';
 
 type Volunteer = {
   user_id: string;
@@ -22,12 +23,12 @@ type FlagVolunteerSheetProps = {
 };
 
 function formatShift(shift: Shift) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(shift.start_datetime), {
     month: 'short',
     day: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(shift.start_datetime));
+  });
 }
 
 export function FlagVolunteerSheet({

@@ -7,6 +7,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type FlagFilter = 'All' | 'Unresolved' | 'Resolved';
 
@@ -36,11 +37,11 @@ type ResolveResponse = {
 const filters: FlagFilter[] = ['All', 'Unresolved', 'Resolved'];
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'long',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function matchesFilter(flag: BoardVolunteerFlag, filter: FlagFilter) {

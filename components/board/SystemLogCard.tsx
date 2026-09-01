@@ -6,6 +6,7 @@ import { createBrowserClient } from '@supabase/ssr';
 import type { BoardSystemLog } from '@/components/board/SystemLogsPanel';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
+import { formatDate } from '@/lib/format-date';
 
 type SystemLogCardProps = {
   log: BoardSystemLog;
@@ -18,13 +19,13 @@ type ResolveResponse = {
 };
 
 function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
     hour: 'numeric',
     minute: '2-digit',
-  }).format(new Date(value));
+  });
 }
 
 export function SystemLogCard({ log, onResolve }: SystemLogCardProps) {

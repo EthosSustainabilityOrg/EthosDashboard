@@ -6,6 +6,7 @@ import { Badge as BadgePill } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Chip } from '@/components/ui/Chip';
 import { CreateBadgeSheet } from '@/components/board/badges/CreateBadgeSheet';
+import { formatDate as formatOrgDate } from '@/lib/format-date';
 
 type BadgeFilter = 'All' | 'Participation' | 'Achievement';
 
@@ -26,11 +27,11 @@ type BadgeManagementProps = {
 const filters: BadgeFilter[] = ['All', 'Participation', 'Achievement'];
 
 function formatDate(value: string) {
-  return new Intl.DateTimeFormat('en-US', {
+  return formatOrgDate(new Date(value), {
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  }).format(new Date(value));
+  });
 }
 
 function categoryVariant(category: ManagedBadge['badge_category']) {
