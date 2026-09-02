@@ -195,7 +195,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
     const { data, error, count } = await query.returns<RawProjectRow[]>();
 
     if (error) {
-      console.log('GET projects error:', error.message);
+      console.error('GET projects error:', error.message);
       return NextResponse.json(
         { data: null, error: { code: 'VALIDATION_ERROR', message: error.message } },
         { status: 400 }

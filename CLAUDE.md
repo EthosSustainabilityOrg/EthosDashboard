@@ -106,7 +106,9 @@ session cookie; it makes no authorization decisions.
 - npm SSL broken on the local Windows machine — use Codespaces
 - `@supabase/ssr` type shim at `types/supabase-ssr.d.ts` (real package installed on Vercel)
 - Slack OAuth not wired — Connect Slack button disabled, and the Slack gate in the
-  onboarding completion check is commented out in two places
+  onboarding completion check is commented out in three places (the OpenSign webhook,
+  the orientation-progress route, and the onboarding checklist UI). Uncomment all three
+  together, or `completed_at` and the checklist will disagree about who is done.
 - OpenSign templates not created — waiver/consent flow not testable
 - Notification delivery not wired — records inserted, but no email/Slack sends
 
