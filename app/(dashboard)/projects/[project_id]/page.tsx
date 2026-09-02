@@ -224,7 +224,6 @@ export default async function ProjectDetailPage({ params }: ProjectDetailPagePro
       currentUserId={authUser.id}
       isLead={isLead}
       isBoard={isBoard}
-      isMember={isMember}
       pendingCount={pendingCount}
     />
   );

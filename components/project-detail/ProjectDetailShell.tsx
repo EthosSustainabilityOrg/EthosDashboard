@@ -75,7 +75,6 @@ type ProjectDetailShellProps = {
   updates: ProjectUpdate[];
   isLead: boolean;
   isBoard: boolean;
-  isMember: boolean;
   currentUserId: string;
   pendingCount: number;
   tabCounts?: {
@@ -102,7 +101,6 @@ export function ProjectDetailShell({
   updates,
   isLead,
   isBoard,
-  isMember,
   currentUserId,
   pendingCount,
   tabCounts,

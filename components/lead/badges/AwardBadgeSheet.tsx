@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { createBrowserClient } from '@supabase/ssr';
 import type { Badge } from '@/types/badges';
 import { Button } from '@/components/ui/Button';
@@ -54,7 +54,7 @@ export function AwardBadgeSheet({
     [],
   );
 
-  async function getAuthHeaders() {
+  const getAuthHeaders = useCallback(async () => {
     const {
       data: { session },
     } = await supabase.auth.getSession();
@@ -63,7 +63,7 @@ export function AwardBadgeSheet({
       'Content-Type': 'application/json',
       ...(session?.access_token ? { Authorization: `Bearer ${session.access_token}` } : {}),
     };
-  }
+  }, [supabase]);
 
   useEffect(() => {
     let isMounted = true;
@@ -100,7 +100,7 @@ export function AwardBadgeSheet({
     return () => {
       isMounted = false;
     };
-  }, [badgeFilter, projectId]);
+  }, [badgeFilter, projectId, getAuthHeaders]);
 
   async function handleAward() {
     if (!selectedBadgeId) return;
