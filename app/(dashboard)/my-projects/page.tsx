@@ -125,7 +125,7 @@ export default async function MyProjectsPage() {
 
         <div className="rounded-xl border border-sand bg-cream p-8 text-center">
           <p className="text-sm text-warm-gray">
-            You're not on any projects yet.{' '}
+            You&apos;re not on any projects yet.{' '}
             <Link href="/open-calls" className="font-semibold text-espresso underline">
               Browse the project board.
             </Link>

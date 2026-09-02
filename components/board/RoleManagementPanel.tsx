@@ -92,6 +92,7 @@ export function RoleManagementPanel({ members, chapters }: RoleManagementPanelPr
             <Input
               value={search}
               onChange={setSearch}
+              ariaLabel="Search members by name"
               placeholder="Search by name..."
               name="role-search"
             />

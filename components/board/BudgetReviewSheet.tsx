@@ -101,7 +101,7 @@ export function BudgetReviewSheet({ project, onClose, onAllocated }: BudgetRevie
                 {project.chapter_name} · Lead: {project.lead_name}
               </p>
             </div>
-            <button type="button" className="text-2xl leading-none text-warm-gray" onClick={onClose}>
+            <button type="button" aria-label="Close" className="text-2xl leading-none text-warm-gray" onClick={onClose}>
               x
             </button>
           </div>

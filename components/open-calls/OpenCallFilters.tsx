@@ -39,6 +39,7 @@ export function OpenCallFilters({
       <Input
         value={search}
         onChange={onSearchChange}
+        ariaLabel="Search open calls"
         placeholder="Search open calls..."
         name="open-call-search"
       />

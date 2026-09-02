@@ -37,6 +37,7 @@ export function ProjectFilesTab({ files, actions = null }: ProjectFilesTabProps)
         <Input
           value={search}
           onChange={setSearch}
+          ariaLabel="Search files"
           placeholder="Search files..."
           name="project-file-search"
         />

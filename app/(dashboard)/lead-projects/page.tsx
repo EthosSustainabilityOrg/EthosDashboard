@@ -169,7 +169,7 @@ export default async function LeadProjectsPage() {
       ) : (
         <div className="rounded-xl border border-sand bg-cream p-8 text-center">
           <p className="text-sm text-warm-gray">
-            You haven't created any projects yet.
+            You haven&apos;t created any projects yet.
           </p>
           <Link href="/new-project" className="mt-5 inline-block">
             <Button variant="primary">New Project</Button>

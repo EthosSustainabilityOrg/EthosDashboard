@@ -278,7 +278,7 @@ export default async function HomePage() {
             <ul className="space-y-3">
               {tasks.map((task) => (
                 <li key={task.task_id} className="flex items-center gap-3 rounded-lg border border-sand p-3">
-                  <span className="h-4 w-4 rounded border border-warm-gray" aria-hidden="true" />
+                  <span className="text-warm-gray" aria-hidden="true">—</span>
                   <span className="min-w-0 flex-1 text-sm font-semibold text-espresso">
                     {task.title}
                   </span>

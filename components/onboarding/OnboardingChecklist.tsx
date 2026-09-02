@@ -157,7 +157,7 @@ export function OnboardingChecklist({ onboarding }: OnboardingChecklistProps) {
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-peach-light">
           <ClockIcon />
         </div>
-        <h1 className="text-3xl font-bold text-espresso">You're in the queue</h1>
+        <h1 className="text-3xl font-bold text-espresso">You&apos;re in the queue</h1>
         <p className="mt-2 text-sm text-warm-gray">
           Complete the steps below while you wait.
         </p>

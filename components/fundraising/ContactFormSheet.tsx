@@ -88,7 +88,7 @@ export function ContactFormSheet({ contact, onClose, onSaved }: ContactFormSheet
         <div className="mx-auto max-w-2xl space-y-4">
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-xl font-bold text-espresso">{contact ? 'Edit Contact' : 'Add Contact'}</h2>
-            <button type="button" className="text-2xl leading-none text-warm-gray" onClick={onClose}>x</button>
+            <button type="button" aria-label="Close" className="text-2xl leading-none text-warm-gray" onClick={onClose}>x</button>
           </div>
 
           <Input label="Name" value={name} onChange={setName} name="contact-name" required />

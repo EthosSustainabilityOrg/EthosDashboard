@@ -2,6 +2,8 @@
 
 type InputProps = {
   label?: string;
+  /** Accessible name for inputs rendered without a visible label. */
+  ariaLabel?: string;
   placeholder?: string;
   value: string;
   onChange: (value: string) => void;
@@ -16,6 +18,7 @@ type InputProps = {
 
 export function Input({
   label,
+  ariaLabel,
   placeholder,
   value,
   onChange,
@@ -46,6 +49,7 @@ export function Input({
         placeholder={placeholder}
         disabled={disabled}
         readOnly={readOnly}
+        aria-label={ariaLabel}
         aria-invalid={error ? 'true' : 'false'}
         aria-describedby={error && inputId ? `${inputId}-error` : undefined}
         className={`h-11 w-full rounded-md border bg-cream px-3 text-sm text-espresso placeholder:text-warm-gray focus:outline-none focus:ring-2 focus:ring-peach disabled:cursor-not-allowed disabled:opacity-50 ${

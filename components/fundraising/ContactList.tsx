@@ -51,7 +51,7 @@ export function ContactList({ contacts, isBoard, onAdd, onEdit, onDeleted }: Con
 
       <div className="rounded-xl border border-sand bg-cream p-5">
         <div className="mb-4">
-          <Input value={search} onChange={setSearch} placeholder="Search contacts..." name="contact-search" />
+          <Input value={search} onChange={setSearch} ariaLabel="Search contacts" placeholder="Search contacts..." name="contact-search" />
         </div>
         <div className="flex flex-wrap gap-2">
           {filters.map((item) => (

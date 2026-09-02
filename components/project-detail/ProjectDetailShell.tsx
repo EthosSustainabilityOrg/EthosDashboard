@@ -117,8 +117,12 @@ export function ProjectDetailShell({
   const [flagVolunteer, setFlagVolunteer] = useState<FlagVolunteer | null>(null);
 
   useEffect(() => {
+    // Restoring the persisted tab has to happen after mount: sessionStorage is not
+    // readable during SSR, so a lazy useState initializer would make the first client
+    // render disagree with the server HTML and trip a hydration mismatch.
     const savedTab = window.sessionStorage.getItem(storageKey);
     if (isProjectDetailTab(savedTab)) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(savedTab);
     }
   }, [storageKey]);
@@ -152,10 +156,6 @@ export function ProjectDetailShell({
               <LeadOverviewActions
                 projectId={project.project_id}
                 pendingCount={pendingCount}
-                project={project}
-                shifts={project.shifts}
-                teamMembers={project.team}
-                onFlagVolunteer={setFlagVolunteer}
               />
             ) : null}
             <OverviewTab

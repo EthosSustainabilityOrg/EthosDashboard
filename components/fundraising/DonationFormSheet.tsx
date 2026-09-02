@@ -85,7 +85,7 @@ export function DonationFormSheet({ donation, contacts, onClose, onSaved }: Dona
         <div className="mx-auto max-w-2xl space-y-4">
           <div className="flex items-start justify-between gap-4">
             <h2 className="text-xl font-bold text-espresso">{donation ? 'Edit Donation' : 'Add Donation'}</h2>
-            <button type="button" className="text-2xl leading-none text-warm-gray" onClick={onClose}>x</button>
+            <button type="button" aria-label="Close" className="text-2xl leading-none text-warm-gray" onClick={onClose}>x</button>
           </div>
 
           <Select

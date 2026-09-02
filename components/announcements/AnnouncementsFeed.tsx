@@ -51,6 +51,7 @@ export function AnnouncementsFeed({ announcements, lastSyncedAt }: Announcements
       <Input
         value={search}
         onChange={setSearch}
+        ariaLabel="Search announcements"
         placeholder="Search announcements..."
         name="announcement-search"
       />

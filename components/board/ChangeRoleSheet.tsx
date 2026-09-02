@@ -106,7 +106,7 @@ export function ChangeRoleSheet({ member, onClose, onRoleChanged }: ChangeRoleSh
                 <Badge label={member.org_role_name} variant={roleBadgeVariant(member.org_role_id)} />
               </div>
             </div>
-            <button type="button" className="text-2xl leading-none text-warm-gray" onClick={onClose}>
+            <button type="button" aria-label="Close" className="text-2xl leading-none text-warm-gray" onClick={onClose}>
               x
             </button>
           </div>

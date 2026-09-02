@@ -38,6 +38,7 @@ export function DirectoryFilters({
       <Input
         value={search}
         onChange={onSearchChange}
+        ariaLabel="Search members"
         placeholder="Search members..."
         name="member-search"
       />

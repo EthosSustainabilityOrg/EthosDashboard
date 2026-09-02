@@ -67,6 +67,7 @@ export default function LoginPage() {
             type="email"
             value={email}
             onChange={setEmail}
+            ariaLabel="Email address"
             placeholder="Email address"
             name="email"
           />
@@ -77,7 +78,7 @@ export default function LoginPage() {
         </form>
 
         <p className="text-center text-xs leading-5 text-warm-gray">
-          New to Ethos? Just sign in — you'll be guided from there.
+          New to Ethos? Just sign in — you&apos;ll be guided from there.
         </p>
       </div>
     </div>

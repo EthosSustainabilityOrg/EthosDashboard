@@ -1,12 +1,14 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import type { ApiResponse } from '@/types/api';
 import type { ApplicationStatus } from '@/types/applications';
 import type { Chapter } from '@/types/chapters';
 import type { Project } from '@/types/projects';
 import { Input } from '@/components/ui/Input';
+import { Select } from '@/components/ui/Select';
 import { ProjectCard } from '@/components/onboarding/ProjectCard';
 import { ProjectFilters } from '@/components/onboarding/ProjectFilters';
 
@@ -62,6 +64,7 @@ function sortChapters(chapters: ChapterOption[]) {
 }
 
 export function ProjectBoard() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState('All');
   const [selectedChapterId, setSelectedChapterId] = useState('all');
@@ -190,7 +193,7 @@ export function ProjectBoard() {
       return;
     }
 
-    window.location.href = '/pending';
+    router.push('/pending');
   }
 
   const filteredProjects = projects.filter((project) => {
@@ -212,28 +215,26 @@ export function ProjectBoard() {
       </header>
 
       <div className="mb-6 max-w-sm">
-        <label className="block">
-          <span className="mb-2 block text-sm font-semibold text-espresso">Chapter</span>
-          <select
-            value={selectedChapterId}
-            onChange={(event) => setSelectedChapterId(event.target.value)}
-            className="h-11 w-full rounded-md border border-sand bg-cream px-3 text-sm text-espresso focus:outline-none focus:ring-2 focus:ring-peach"
-          >
-            <option value="all">All Projects</option>
-            <option value="remote">Remote Only</option>
-            {chapters.map((chapter) => (
-              <option key={chapter.chapter_id} value={chapter.chapter_id}>
-                {chapter.name}
-              </option>
-            ))}
-          </select>
-        </label>
+        <Select
+          label="Chapter"
+          value={selectedChapterId}
+          onChange={setSelectedChapterId}
+          options={[
+            { value: 'all', label: 'All Projects' },
+            { value: 'remote', label: 'Remote Only' },
+            ...chapters.map((chapter) => ({
+              value: chapter.chapter_id,
+              label: chapter.name,
+            })),
+          ]}
+        />
       </div>
 
       <div className="mb-6 grid gap-4 md:grid-cols-[1fr_auto]">
         <Input
           value={search}
           onChange={setSearch}
+          ariaLabel="Search projects"
           placeholder="Search projects"
           name="project-search"
         />

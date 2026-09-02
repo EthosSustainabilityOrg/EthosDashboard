@@ -1,25 +1,11 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import type { Project } from '@/types/projects';
-import type { Shift } from '@/types/shifts';
 import { Button } from '@/components/ui/Button';
-
-type TeamMember = {
-  user_id: string;
-  first_name: string;
-  last_name: string;
-  project_role_name: string | null;
-  is_lead: boolean;
-};
 
 type LeadOverviewActionsProps = {
   projectId: string;
   pendingCount: number;
-  project: Project;
-  shifts: Shift[];
-  teamMembers: TeamMember[];
-  onFlagVolunteer: (volunteer: TeamMember) => void;
 };
 
 export function LeadOverviewActions({ projectId, pendingCount }: LeadOverviewActionsProps) {

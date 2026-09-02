@@ -141,7 +141,7 @@ export function OrientationPlayer({ initialProgress }: OrientationPlayerProps) {
           <div>
             <h3 className="font-semibold text-espresso">{active.title}</h3>
             <p className="mt-1 text-sm text-warm-gray">
-              Watch the chapter, then mark it complete when you're ready.
+              Watch the chapter, then mark it complete when you&apos;re ready.
             </p>
           </div>
 

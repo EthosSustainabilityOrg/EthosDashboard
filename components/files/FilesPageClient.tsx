@@ -136,6 +136,7 @@ export function FilesPageClient({ isBoard }: FilesPageClientProps) {
         <Input
           value={search}
           onChange={setSearch}
+          ariaLabel="Search files"
           placeholder="Search files..."
           name="file-search"
         />

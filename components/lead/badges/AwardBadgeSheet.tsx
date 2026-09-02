@@ -149,7 +149,7 @@ export function AwardBadgeSheet({
                 {volunteer.first_name} {volunteer.last_name}
               </p>
             </div>
-            <button type="button" className="text-2xl leading-none text-warm-gray" onClick={onClose}>
+            <button type="button" aria-label="Close" className="text-2xl leading-none text-warm-gray" onClick={onClose}>
               x
             </button>
           </div>
