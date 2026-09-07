@@ -44,6 +44,12 @@ function formatDate(value: string) {
   });
 }
 
+function emptyStateText(filter: FlagFilter) {
+  if (filter === 'Unresolved') return 'No unresolved flags';
+  if (filter === 'Resolved') return 'No resolved flags';
+  return 'No flags found';
+}
+
 function matchesFilter(flag: BoardVolunteerFlag, filter: FlagFilter) {
   if (filter === 'Resolved') return flag.resolved;
   if (filter === 'Unresolved') return !flag.resolved;
@@ -177,7 +183,7 @@ export function VolunteerFlagsPanel({ flags }: VolunteerFlagsPanelProps) {
           ))
         ) : (
           <p className="rounded-xl border border-sand bg-cream px-5 py-12 text-center text-sm text-warm-gray">
-            No {filter.toLowerCase()} flags found
+            {emptyStateText(filter)}
           </p>
         )}
       </section>
