@@ -93,6 +93,9 @@
 - Custom Select dropdown component
 - Ethos insignia logo added to sidebar/logo components
 - All 33 remaining API routes fixed to use DB `org_role_id` lookup instead of JWT claims (commit `e96f103`)
+- All 63 RLS policies fixed to use DB role lookup instead of JWT claims (migration `029`, applied to production 2026-09-07)
+- Volunteer flags empty state text now matches the active filter
+- Role management panel shows the full roster (was showing only the viewer)
 
 ## JWT role issue — resolved
 
@@ -124,7 +127,66 @@ const orgRoleId = roleData?.org_role_id ?? 1;
 
 Then replace `claims.org_role_id` with `orgRoleId` in route-handler authorization checks.
 
-RLS policies still use JWT claims and should remain as-is.
+RLS policies were fixed separately — see below.
+
+## RLS JWT claim issue — resolved
+
+✅ Complete (2026-09-07) — All RLS policies now resolve the caller's role via a
+database lookup instead of reading it off the JWT. This is the database-layer
+counterpart to the API-route fix above; that fix covered route handlers only and
+left the policies themselves still reading `auth.jwt() ->> 'org_role_id'`.
+
+**Symptom:** every policy gated on a claim evaluated to NULL rather than TRUE,
+so it silently denied. Board and Project Lead lost access they should have had.
+The visible case was the role management panel returning only the viewer's own
+row — `users_select_board` never matched, leaving `users_select_own` as the only
+policy that did. These all failed closed, so this was a lockout, never a
+privilege escalation.
+
+**Fix:** migration `029_fix_rls_jwt_claims.sql` adds a `SECURITY DEFINER` helper
+and rewrites **63 policies across 23 tables** to call it:
+
+```sql
+CREATE OR REPLACE FUNCTION public.current_org_role_id()
+RETURNS integer
+LANGUAGE sql
+STABLE
+SECURITY DEFINER
+SET search_path = public
+AS $$
+  SELECT org_role_id FROM public.users
+  WHERE user_id = auth.uid();
+$$;
+```
+
+`SECURITY DEFINER` is required, not merely convenient: policies on `users` and
+`user_auth` need the caller's role, and an inline subquery against `users` from
+inside a policy on `users` would re-enter that policy and recurse. Returns NULL
+for unknown users, so comparisons still fail closed.
+
+Also replaced the single `chapter_id` claim in `projects_insert_lead_board` with
+a subquery, matching the existing pattern at `006_projects.sql:70`.
+
+**Applied to production 2026-09-07**, in four manual batches via the Supabase SQL
+editor. The single-transaction run failed silently, so the migration was split
+and each batch run separately. Verified with zero rows from:
+
+```sql
+SELECT schemaname, tablename, policyname
+FROM pg_policies
+WHERE schemaname = 'public'
+  AND (qual LIKE '%auth.jwt%' OR with_check LIKE '%auth.jwt%');
+```
+
+**Consequence:** Board-scoped reads through the anon client now work under RLS.
+`app/(dashboard)/board/roles/page.tsx` had been using `supabaseAdmin` to work
+around the broken policy; it is back on the anon client.
+
+`claims.chapter_id` in API routes was left untouched — the unreliable-claims
+issue only affected `org_role_id`.
+
+**When adding new policies:** use `public.current_org_role_id() = 3`, never
+`auth.jwt() ->> 'org_role_id'`.
 
 ## Known remaining issues
 

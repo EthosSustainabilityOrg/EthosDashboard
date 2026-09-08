@@ -1,7 +1,5 @@
 import { cookies } from 'next/headers';
-import { redirect } from 'next/navigation';
 import { createServerClient } from '@supabase/ssr';
-import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { Chapter } from '@/types/chapters';
 import type { OrgRoleId } from '@/types/auth';
 import { RoleManagementPanel } from '@/components/board/RoleManagementPanel';
@@ -61,35 +59,12 @@ export default async function BoardRolesPage() {
     },
   );
 
-  const {
-    data: { user: authUser },
-  } = await supabase.auth.getUser();
-
-  if (!authUser) {
-    redirect('/login');
-  }
-
-  // Board check via DB lookup — JWT custom claims are not reliably populated.
-  const { data: viewer } = await supabaseAdmin
-    .from('users')
-    .select('org_role_id')
-    .eq('user_id', authUser.id)
-    .maybeSingle();
-
-  if ((viewer?.org_role_id ?? 1) !== 3) {
-    redirect('/home');
-  }
-
-  // The users RLS policy for Board reads org_role_id off the JWT, which is empty in
-  // production, so the anon client only ever returns the viewer's own row here.
-  // Role management needs the full org roster, so read it with the service role
-  // after the Board check above.
   const [membersResult, chaptersResult] = await Promise.all([
-    supabaseAdmin
+    supabase
       .from('users')
       .select('user_id, first_name, last_name, org_role_id, chapter_id, chapters(name)')
       .order('first_name', { ascending: true }),
-    supabaseAdmin.from('chapters').select('*').order('name', { ascending: true }),
+    supabase.from('chapters').select('*').order('name', { ascending: true }),
   ]);
 
   const members = ((membersResult.data ?? []) as MemberRow[]).map<RoleManagedMember>((member) => ({
