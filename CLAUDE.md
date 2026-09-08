@@ -17,7 +17,23 @@ This file adds the deployment lessons and patterns discovered in production.
 ### JWT custom claims do NOT work
 The Supabase JWT hook (`custom_access_token_hook`) is registered, but claims are not
 reliably populated in production. NEVER use `claims.org_role_id` or `claims.chapter_id`
-for authorization decisions.
+for any authorization or scoping decision, anywhere.
+
+Both claims are set by the same function, in the same code path, from one `SELECT`
+(`000_jwt_hook.sql`). There is no failure mode where one is populated and the other is
+not, so `chapter_id` is exactly as untrustworthy as `org_role_id` — treat them the same.
+
+**Current state: zero JWT claim reads remain** in API routes, server components, or
+client components. `claims` is still used for `sub`/`email` from the server-verified
+token, which is fine. The last two custom-claim readers were removed:
+- API routes and RLS policies — commits `e96f103` and migration `029`
+- `app/(dashboard)/open-calls/page.tsx` — had a local `decodeStringClaim()` helper
+  reading `chapter_id` off the access token to drive the chapter filter chips; now
+  reads `chapter_id` from the users row it already queries
+
+Before considering any new authorization or chapter-scoping code done, grep for
+`claims.org_role_id`, `claims.chapter_id`, `auth.jwt()`, `decodeRoleId`, and any local
+token-decoding helper. All should return zero hits.
 
 Always use a DB lookup:
 ```typescript
@@ -30,6 +46,14 @@ const orgRoleId = roleData?.org_role_id ?? 1;
 ```
 The `?? 1` fallback matters: an unknown user defaults to Member, the least-privileged
 role. Never default to 2 or 3.
+
+`chapter_id` has no safe default — it is `NOT NULL` in `003_users.sql`, so a null value
+means the caller has no users row yet (a brand-new Google sign-in before their first
+application), not that they belong to no chapter. Never interpolate a null chapter into
+a PostgREST filter string: `chapter_id.eq.null` is invalid UUID syntax and returns a
+400. Drop the chapter clause instead — see `app/api/projects/route.ts` and
+`app/api/search/route.ts`, which both build a filter array and `unshift` the chapter
+clause only when a chapter is known.
 
 ### Client-side auth headers
 Every client component that fetches `/api/` routes must send an Authorization header:

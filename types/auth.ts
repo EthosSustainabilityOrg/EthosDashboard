@@ -41,13 +41,31 @@ export interface UserAuth {
 // Shape of the JWT payload after 000_jwt_hook.sql custom claims hook runs.
 
 /**
- * Custom claims injected into the Supabase JWT by the custom_access_token_hook.
- * Available via auth.jwt() in RLS policies and via the decoded token client-side.
+ * Shape of the Supabase JWT payload, including the custom claims that
+ * custom_access_token_hook is supposed to inject.
+ *
+ * NEVER TRUST org_role_id OR chapter_id FROM THIS TYPE FOR AUTHORIZATION.
+ * The hook is registered and works when called directly in SQL, but the two
+ * custom claims are not reliably populated in the tokens actually issued in
+ * production. A missing claim reads as undefined, which silently fails closed
+ * (lockouts) or silently mis-scopes queries — neither is visible to tsc.
+ *
+ * Resolve role and chapter with a DB lookup instead, in every layer:
+ *   - API routes / server components: select org_role_id, chapter_id from
+ *     public.users where user_id = <verified sub>, defaulting role to 1 (Member).
+ *   - RLS policies: public.current_org_role_id(), or a subquery against
+ *     public.users — never auth.jwt() ->> '...' (see migration 029).
+ *
+ * The fields stay declared here because they exist on the token's shape, not
+ * because they are safe to read. sub, email, exp and iat are standard Supabase
+ * claims and remain fine to use.
  */
 export interface JwtClaims {
-  /** Supabase Auth user UUID. Same as users.user_id. */
+  /** Supabase Auth user UUID. Same as users.user_id. Safe to use. */
   sub: string;
+  /** DO NOT USE for authorization — unreliable in production. DB lookup instead. */
   org_role_id: OrgRoleId;
+  /** DO NOT USE for scoping — unreliable in production. DB lookup instead. */
   chapter_id: string;
   email: string;
   exp: number;

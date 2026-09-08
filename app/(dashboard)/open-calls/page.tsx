@@ -24,26 +24,12 @@ type ApplicationRow = Pick<Application, 'application_id' | 'project_id' | 'statu
 type UserRow = {
   first_name: string;
   last_name: string;
+  chapter_id: string;
   active_login_email: string;
   guardian_name: string;
   guardian_email: string;
   guardian_phone: string | null;
 };
-
-function decodeStringClaim(accessToken: string, key: string) {
-  try {
-    const payload = accessToken.split('.')[1];
-    if (!payload) return null;
-
-    const parsed = JSON.parse(atob(payload)) as unknown;
-    if (!parsed || typeof parsed !== 'object' || !(key in parsed)) return null;
-
-    const value = parsed[key as keyof typeof parsed];
-    return typeof value === 'string' ? value : null;
-  } catch {
-    return null;
-  }
-}
 
 function getUpcomingShift(shifts: ProjectRow['shifts']) {
   const now = Date.now();
@@ -84,8 +70,6 @@ export default async function OpenCallsPage() {
     redirect('/login');
   }
 
-  const userChapterId = decodeStringClaim(session.access_token, 'chapter_id');
-
   const [projectsResult, applicationsResult, userResult] = await Promise.all([
     supabase
       .from('projects')
@@ -100,7 +84,7 @@ export default async function OpenCallsPage() {
       .eq('user_id', session.user.id),
     supabase
       .from('users')
-      .select('first_name, last_name, active_login_email, guardian_name, guardian_email, guardian_phone')
+      .select('first_name, last_name, chapter_id, active_login_email, guardian_name, guardian_email, guardian_phone')
       .eq('user_id', session.user.id)
       .maybeSingle(),
   ]);
@@ -108,6 +92,12 @@ export default async function OpenCallsPage() {
   const projectRows = (projectsResult.data ?? []) as ProjectRow[];
   const applicationRows = (applicationsResult.data ?? []) as ApplicationRow[];
   const userRow = userResult.data as UserRow | null;
+
+  // Chapter comes from the users row, never from a JWT claim: the custom claims
+  // hook is not reliably populated in production, and a null chapter here breaks
+  // the "My Chapter"/"Nearby" filters into overlapping, wrong result sets.
+  // Null is still expected for a brand-new sign-in with no users row yet.
+  const userChapterId = userRow?.chapter_id ?? null;
 
   const projects: OpenCallProject[] = projectRows.map((project) => ({
     ...project,

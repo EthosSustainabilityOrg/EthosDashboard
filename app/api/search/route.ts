@@ -168,11 +168,22 @@ async function searchProjects(auth: AuthContext, query: string, limit: number, o
     .range(offset, offset + limit - 1);
 
   if (auth.roleId !== 3) {
-    if (auth.roleId === 2) {
-      request = request.or(`and(is_published.eq.true,chapter_id.eq.${auth.chapterId}),and(is_published.eq.true,is_open_call.eq.true),created_by.eq.${auth.userId}`);
-    } else {
-      request = request.or(`and(is_published.eq.true,chapter_id.eq.${auth.chapterId}),and(is_published.eq.true,is_open_call.eq.true)`);
+    // chapterId is null when the caller has no users row yet (e.g. a brand-new
+    // sign-in before their first application) — chapter_id is NOT NULL in the
+    // schema, so skip the chapter clause rather than emit "chapter_id.eq.null",
+    // which Postgres rejects as invalid UUID syntax and returns a 400 for.
+    // Same guard as app/api/projects/route.ts.
+    const projectFilters = ['and(is_published.eq.true,is_open_call.eq.true)'];
+
+    if (auth.chapterId) {
+      projectFilters.unshift(`and(is_published.eq.true,chapter_id.eq.${auth.chapterId})`);
     }
+
+    if (auth.roleId === 2) {
+      projectFilters.push(`created_by.eq.${auth.userId}`);
+    }
+
+    request = request.or(projectFilters.join(','));
   }
 
   const { data, count } = await request.returns<ProjectSearchRow[]>();

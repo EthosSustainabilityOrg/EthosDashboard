@@ -109,7 +109,7 @@
 
 `tsc --noEmit` passes with zero errors. No remaining `claims.org_role_id` references anywhere in the codebase.
 
-`claims.chapter_id` was left untouched — the unreliable-claims issue only affected `org_role_id`.
+`claims.chapter_id` was not part of this pass — see "chapter_id claim — resolved" below for why that was the wrong call and how it was closed out.
 
 ## Pattern for DB role fix
 
@@ -188,6 +188,53 @@ issue only affected `org_role_id`.
 **When adding new policies:** use `public.current_org_role_id() = 3`, never
 `auth.jwt() ->> 'org_role_id'`.
 
+## chapter_id claim — resolved
+
+✅ Complete (2026-09-08) — The two fixes above both recorded that `claims.chapter_id`
+was "left untouched" because the unreliable-claims issue "only affected `org_role_id`".
+That reasoning was wrong, and the note was also factually stale.
+
+**Why the reasoning was wrong:** both claims are written by the same function, in the
+same code path, from a single `SELECT`, guarded only by symmetric `IF ... IS NOT NULL`
+checks (`000_jwt_hook.sql`). There is no mechanism by which `org_role_id` fails to reach
+the JWT while `chapter_id` succeeds. And `users.chapter_id` is `NOT NULL`
+(`003_users.sql:18`), so for any user with a row either both guards pass or the row does
+not exist and neither does. The claims share fate. `chapter_id` should have been treated
+as unreliable from the start.
+
+**Why the note was stale:** an audit on 2026-09-08 found **zero** `claims.chapter_id`
+references in API routes. Every chapter-scoping route already resolved chapter via a DB
+lookup — `projects` (GET scoping + POST chapter check), `projects/:id` (visibility),
+`search`, `users/directory`, `users/:id`. There was nothing left to fix there.
+
+**What was actually still reading a claim:** one server component,
+`app/(dashboard)/open-calls/page.tsx`. It defined its own local `decodeStringClaim()`
+helper — a private re-implementation of the deleted `lib/decode-role.ts`, which is why
+grepping for `decodeRoleId` never surfaced it — and used it to read `chapter_id` off the
+access token for the chapter filter chips. With the claim absent, `userChapterId` was
+null, so "My Chapter" matched nothing and "Nearby" matched every non-HQ project
+including the member's own chapter. Display-only, no data exposure: the underlying query
+is already narrowed to published open calls under RLS. Fixed by adding `chapter_id` to
+the users query the page already runs.
+
+**Separate bug found in the same audit:** `app/api/search/route.ts` interpolated
+`auth.chapterId` straight into its PostgREST `.or()` filter with no null guard, emitting
+`chapter_id.eq.null` and a 400 for any caller without a users row — every brand-new
+Google sign-in before their first application. `projects/route.ts` had guarded this case
+and documented it; `search` never got the same treatment. Now builds a filter array and
+only adds the chapter clause when a chapter is known. The members branch of the same
+route was already guarded.
+
+`types/auth.ts` still declares `org_role_id` and `chapter_id` on `JwtClaims` — they do
+exist on the token's shape — but the doc comment claimed they were "available via
+`auth.jwt()` in RLS policies", which is false since migration `029` and was an active
+invitation to reach for the claim. Rewritten to say the fields must never be trusted for
+authorization and to point at the DB-lookup pattern in each layer.
+
+**Current state: zero JWT custom-claim reads anywhere** — API routes, RLS policies,
+server components, client components. `extractClaims` remains in use for `sub` and
+`email` off the server-verified token, which is correct and unaffected.
+
 ## Known remaining issues
 
 - Project delete is not implemented yet (`DELETE /api/projects/:id` does not exist)
@@ -196,6 +243,7 @@ issue only affected `org_role_id`.
 - OpenSign webhook header name unverified against real OpenSign docs
 - `@dnd-kit` not installed (kanban drag deferred)
 - `types/supabase-ssr.d.ts` shim still present (real package installed on Vercel, shim only affects local dev)
+- ~60 files show as modified with CRLF-only line-ending churn and zero content change (`git diff --ignore-cr-at-eol` is empty repo-wide); `core.autocrlf` is unset on the Windows machine. Not committed. Worth a `.gitattributes` decision rather than letting it ride
 
 ## Next priorities
 
