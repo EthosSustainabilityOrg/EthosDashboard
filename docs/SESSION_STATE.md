@@ -235,6 +235,39 @@ authorization and to point at the DB-lookup pattern in each layer.
 server components, client components. `extractClaims` remains in use for `sub` and
 `email` off the server-verified token, which is correct and unaffected.
 
+## Wizard duplicate children on retry — fixed
+
+✅ Fixed (2026-09-09) — `components/lead/project-wizard/CreateProjectWizard.tsx`.
+
+The standing priority item read "wizard shift/role child POSTs need logging and response
+checks; failures can still be swallowed". That was stale: both loops in
+`createProjectChildren` already check `!res.ok` and throw, and the error surfaces through
+`publishError`. Nothing was being swallowed.
+
+**The actual bug:** `saveDraft` (:249) and `publishProject` (:263) both do
+`projectId ?? await createDraftProject()`, so a retry reuses the existing project — but
+`createProjectChildren` always looped the full `formData.shifts` and `formData.roles`
+from index 0. Any retry after a failure re-POSTed the children that had already
+succeeded.
+
+The most likely path in practice: a Lead clicks Publish, all shifts and roles are
+created, then the publish call itself fails. They fix whatever it complained about and
+click Publish again — and the project now has every shift and role twice.
+
+**Fix:** two `useRef<Set<number>>` trackers record which shift/role indexes have landed
+on the server. The loops skip recorded indexes and record each on success. Verified by
+reasoning through four paths: clean run (all created once), retry after publish failure
+(all skipped, straight to publish), mid-loop failure (only the unfinished tail retried),
+and edit-then-retry (see limitation).
+
+**Limitation, deliberate:** the trackers are cleared whenever the user edits shifts or
+roles, because the indexes would no longer line up with the server rows. So editing
+after a partial create still duplicates. That is exactly the behaviour that existed
+before this fix, so it is not a regression — but it is not solved either. Not clearing
+would be worse: the user's edit would silently never reach the server. A real fix means
+PATCHing or DELETEing already-created children, which is a larger change and is now
+priority 2.
+
 ## Needs Decision
 
 Items that require a product decision, not a code fix. Do not guess at these — see
@@ -317,7 +350,8 @@ started without a spec amendment and an explicit product decision.
 
 - Project delete is not implemented, and is not in the API spec — see "Needs Decision"
 - `POST /api/projects/:project_id/close` is built but has **zero UI callers** — the spec'd way to retire a project is unreachable from the app
-- Wizard shift/role child POSTs need logging and response checks; failures can still be swallowed
+- Wizard shift/role child POSTs **already check `res.ok` and throw** — the old "failures can still be swallowed" note was stale. The real bug was duplicate children on retry, fixed 2026-09-09; one edge case remains, see below
+- Wizard: editing shifts/roles *after* a partial create still duplicates them on retry. The created-index tracking is deliberately cleared on edit, because the alternative (keeping it) would silently drop the user's edit instead. A full fix needs PATCH/DELETE of already-created children, which is a larger change
 - Notification delivery not wired (records inserted, no email/Slack sends triggered)
 - OpenSign webhook header name unverified against real OpenSign docs
 - `@dnd-kit` not installed (kanban drag deferred)
@@ -327,7 +361,7 @@ started without a spec amendment and an explicit product decision.
 ## Next priorities
 
 1. Decide project retirement: wire up the existing `close` endpoint, or amend the spec for a real delete — see "Needs Decision"
-2. Add wizard shift/role save logging and response checks
+2. Wizard: handle edits to already-created shifts/roles (PATCH/DELETE existing children instead of clearing the created-index tracking)
 3. Wire notification delivery (records exist, no sends)
 4. Test full onboarding flow end to end
 5. Test project creation wizard shifts/roles saving

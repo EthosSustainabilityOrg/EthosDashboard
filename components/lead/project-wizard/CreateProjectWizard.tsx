@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
 import type { ApiResponse } from '@/types/api';
@@ -100,6 +100,14 @@ export function CreateProjectWizard({
     ...createEmptyFormData(chapters),
     chapter_id: currentChapterId || chapters[0]?.chapter_id || '',
   }));
+  // Indexes of shifts/roles already created on the server for the current
+  // projectId. Save Draft and Publish both reuse an existing projectId on retry,
+  // so without this a retry after a mid-flight failure re-POSTs the children that
+  // already succeeded and the project ends up with duplicates. Cleared whenever
+  // the user edits shifts or roles, since the indexes would no longer line up.
+  const createdShiftIndexes = useRef<Set<number>>(new Set());
+  const createdRoleIndexes = useRef<Set<number>>(new Set());
+
   const [readinessChecked, setReadinessChecked] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [publishError, setPublishError] = useState<string | null>(null);
@@ -115,6 +123,8 @@ export function CreateProjectWizard({
   );
 
   function updateFormData(update: Partial<WizardFormData>) {
+    if (update.shifts) createdShiftIndexes.current = new Set();
+    if (update.roles) createdRoleIndexes.current = new Set();
     setFormData((current) => ({ ...current, ...update }));
   }
 
@@ -191,7 +201,9 @@ export function CreateProjectWizard({
     const headers = await getAuthHeaders();
 
     // Create shifts
-    for (const shift of formData.shifts) {
+    for (const [index, shift] of formData.shifts.entries()) {
+      if (createdShiftIndexes.current.has(index)) continue;
+
       if (shift.end_datetime <= shift.start_datetime) {
         throw new Error('End time must be after start time');
       }
@@ -211,15 +223,19 @@ export function CreateProjectWizard({
         }
       );
       if (!res.ok) {
-        const body = await res.json();
+        const body = (await res.json()) as ApiResponse<unknown>;
         throw new Error(
           body?.error?.message ?? 'Failed to create shift'
         );
       }
+
+      createdShiftIndexes.current.add(index);
     }
 
     // Create roles
-    for (const role of formData.roles) {
+    for (const [index, role] of formData.roles.entries()) {
+      if (createdRoleIndexes.current.has(index)) continue;
+
       const res = await fetch(
         `/api/projects/${nextProjectId}/roles`,
         {
@@ -233,11 +249,13 @@ export function CreateProjectWizard({
         }
       );
       if (!res.ok) {
-        const body = await res.json();
+        const body = (await res.json()) as ApiResponse<unknown>;
         throw new Error(
           body?.error?.message ?? 'Failed to create role'
         );
       }
+
+      createdRoleIndexes.current.add(index);
     }
   }
 
