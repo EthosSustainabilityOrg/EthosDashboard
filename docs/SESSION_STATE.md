@@ -235,6 +235,44 @@ authorization and to point at the DB-lookup pattern in each layer.
 server components, client components. `extractClaims` remains in use for `sub` and
 `email` off the server-verified token, which is correct and unaffected.
 
+## Needs Decision
+
+Items that require a product decision, not a code fix. Do not guess at these — see
+"Working Independently" in `CLAUDE.md`.
+
+### chapter_id query param: inconsistent between projects and directory
+**Flagged:** 2026-09-08 (chapter_id claim audit). **Status:** open. **Not a safety bug.**
+
+Two routes accept a `chapter_id` query param and treat it differently:
+
+- `app/api/projects/route.ts:165` — applies the param for **any** caller. It is safe
+  because it is an `.eq()` chained onto the already-applied role scope `.or()`, so it
+  can only narrow what the caller could already see, never widen it. A Member can use
+  it to filter, but cannot use it to reach another chapter's unpublished or non-open-call
+  projects.
+- `app/api/users/directory/route.ts:74` — returns 403 `FORBIDDEN` for any non-Board
+  caller that passes the param at all, with the message "chapter_id filter is only
+  available to Board members".
+
+So the same param is a permitted filter in one route and a forbidden capability in the
+other. Both are safe; they just disagree about what the param *means*.
+
+**The decision:** should Members and Project Leads be able to filter projects by chapter
+via this param?
+- **Option A — leave projects as-is, param is a filter.** Members can narrow the open-call
+  board by chapter. Harmless, arguably useful for "show me what the Denton chapter is
+  running". Directory stays stricter because member lists are personal data and projects
+  are not.
+- **Option B — make projects match directory, Board-only.** Consistent rule across the
+  API, easier to reason about, one less thing to get wrong in a future route. Costs the
+  filtering ability, and would need a UI check for anywhere the client sends the param.
+
+Option A is the status quo and needs only a comment explaining the deliberate difference.
+Option B needs a code change plus a check of every caller that sends `chapter_id`.
+
+Whichever is chosen, record the rule in `CLAUDE.md` so the next route that takes a
+chapter param does not have to re-litigate it.
+
 ## Known remaining issues
 
 - Project delete is not implemented yet (`DELETE /api/projects/:id` does not exist)

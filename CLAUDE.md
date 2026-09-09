@@ -126,6 +126,71 @@ duplicate `getUser()` call was timing out. The remaining `getUser()` is raced ag
 5s timeout that falls through to `NextResponse.next()`. Middleware only refreshes the
 session cookie; it makes no authorization decisions.
 
+## Working Independently
+
+This section applies when working on this repo without someone reviewing each change.
+
+### Before starting any task
+- Read `docs/SESSION_STATE.md` **in full**. It is the running record of what is done,
+  what is stubbed, what is broken, and what is merely assumed. Starting without it is
+  how the same bug gets fixed twice or a deliberate stub gets "fixed" back on.
+- Check the "Needs Decision" section for anything that blocks or overlaps the task.
+
+### Before considering any task done
+- Run the typecheck: `npx tsc --noEmit`. If the `.bin` shim fails (it is a Windows shim
+  and breaks under WSL, Codespaces, or any Linux shell with `exec: node.exe: not found`),
+  run `node node_modules/typescript/lib/tsc.js --noEmit` instead.
+- **Never commit without running the typecheck first.** No exceptions.
+- A clean typecheck is necessary, not sufficient — see "Verify runtime behavior" below.
+
+### After finishing any task
+Update `docs/SESSION_STATE.md` with three things:
+1. **What changed** — files touched and why, with commit hashes.
+2. **What was verified** — what was actually checked, and how. Name the method
+   (typecheck, grep, browser click-through, SQL query against production). "Should work"
+   is not verification.
+3. **What is still open** — anything left undone, any assumption made, anything the
+   change deliberately did not cover.
+
+### Authorization changes
+When a fix touches authorization, role checks, or chapter scoping, grep for all of these
+before calling it complete. Every one should return zero hits:
+```
+claims.org_role_id
+claims.chapter_id
+decodeRoleId
+decodeStringClaim
+auth.jwt()
+atob(
+```
+The last two matter because the pattern has come back disguised: a local
+`decodeStringClaim()` helper inside a page component survived two prior cleanup passes
+precisely because nobody grepped for anything but `decodeRoleId`. Grep for the
+behavior (decoding a token), not just the known function name.
+
+### Verify runtime behavior, not just the typecheck
+This codebase has a documented history of `tsc` passing cleanly while the app was
+broken at runtime. All three of the recurring bug classes are invisible to the compiler:
+- RLS policies that silently deny and return empty result sets
+- Ambiguous Supabase joins that fail only when the query actually runs
+- Client components missing the `Authorization` header, which fail silently on submit
+- PostgREST filter strings built by interpolation, which are just strings to `tsc`
+
+So reason through what the code will actually do at runtime: what the query returns for
+each role, what happens when a value is null, what the user sees. Where practical,
+confirm against the live deployment or the database rather than assuming.
+
+### Ambiguity and product decisions
+Do not guess. If a task requires a product decision the planning docs in `/docs` do not
+cover, stop and record it under "Needs Decision" in `docs/SESSION_STATE.md` with the
+options and the tradeoff. Guessing at product behavior on a platform for minors is how
+a safety property gets quietly weakened.
+
+### Commits
+Prefer small, single-purpose commits with clear messages over large batched ones. Keep
+mechanical changes (formatting, line endings, renames) in their own commit, separate
+from behavioral changes, so a real diff is never buried in noise.
+
 ## Known constraints
 - npm SSL broken on the local Windows machine — use Codespaces
 - `@supabase/ssr` type shim at `types/supabase-ssr.d.ts` (real package installed on Vercel)
