@@ -273,9 +273,50 @@ Option B needs a code change plus a check of every caller that sends `chapter_id
 Whichever is chosen, record the rule in `CLAUDE.md` so the next route that takes a
 chapter param does not have to re-litigate it.
 
+### Project delete: not in the API spec, and `close` is the spec'd path
+**Flagged:** 2026-09-09. **Status:** open. **Blocks "Next priorities" item 1.**
+
+"Add project delete flow and `DELETE /api/projects/:id`" has been sitting at the top of
+Next priorities, but building it would violate `AGENTS.md` ("Do not create any API
+endpoints not in the API spec"). Verified 2026-09-09:
+
+- `docs/13_api_spec_part1.md` contains `DELETE` for **shifts** (:448) and **roles**
+  (:484) only. There is no `DELETE /api/projects/:project_id` anywhere in the spec.
+- No `DELETE` handler exists on `app/api/projects/[project_id]/route.ts` (only `GET`
+  and `PATCH`).
+- No delete UI exists. The only `confirmVariant="danger"` in `EditProjectForm.tsx` is
+  the shift/role remove dialog, which correctly targets the two spec'd endpoints.
+
+What the spec *does* provide for retiring a project is `POST /api/projects/:project_id/close`
+(spec :405): sets `is_published = false` and `is_open_call = false`, auto-rejects all
+pending applications, notifies those applicants, and cannot be reopened. The route is
+built and complete.
+
+**The real gap is that `close` has no UI.** Grep finds zero callers outside the route
+file itself — it is an orphaned endpoint. `ProjectHeader.tsx` renders Publish and Edit
+buttons and nothing else.
+
+**The decision:** how should a Lead or Board retire a project?
+- **Option A — wire up `close` (spec-compliant, no new endpoint).** Add a Close button
+  to `ProjectHeader.tsx` behind a confirm dialog, Lead-own or Board-any per the spec's
+  auth line. Preserves the project row and all history: applications, tasks, files,
+  badges awarded for it, and notifications referencing it all stay intact and readable.
+  This is what the spec intends and it needs no product decision to proceed.
+- **Option B — add a real delete.** Requires a spec amendment first, then answers to:
+  hard delete or soft? What happens to approved applications that count against a
+  member's 3-active-project limit? To tasks, files, and project_updates with FK
+  references? To badges already awarded for the project? To notifications that link to
+  it? On a platform where volunteer hours may be the record a minor relies on for
+  school service credit, destroying project history is not a small call.
+
+Recommendation: Option A. It is already specified, already half-built, and reversible in
+the sense that a delete could still be added later on top of it. Option B should not be
+started without a spec amendment and an explicit product decision.
+
 ## Known remaining issues
 
-- Project delete is not implemented yet (`DELETE /api/projects/:id` does not exist)
+- Project delete is not implemented, and is not in the API spec — see "Needs Decision"
+- `POST /api/projects/:project_id/close` is built but has **zero UI callers** — the spec'd way to retire a project is unreachable from the app
 - Wizard shift/role child POSTs need logging and response checks; failures can still be swallowed
 - Notification delivery not wired (records inserted, no email/Slack sends triggered)
 - OpenSign webhook header name unverified against real OpenSign docs
@@ -285,7 +326,7 @@ chapter param does not have to re-litigate it.
 
 ## Next priorities
 
-1. Add project delete flow and `DELETE /api/projects/:id`
+1. Decide project retirement: wire up the existing `close` endpoint, or amend the spec for a real delete — see "Needs Decision"
 2. Add wizard shift/role save logging and response checks
 3. Wire notification delivery (records exist, no sends)
 4. Test full onboarding flow end to end
