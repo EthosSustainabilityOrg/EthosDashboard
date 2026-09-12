@@ -7,6 +7,7 @@ import { supabaseAdmin } from '@/lib/supabase-admin';
 import { extractClaims } from '@/lib/auth';
 import { inviteToChannel } from '@/lib/slack';
 import { unlockOnboardingIfApproved } from '@/lib/onboarding';
+import { deliverNotification } from '@/lib/notifications';
 import type { ApiResponse } from '@/types/api';
 import type { Application } from '@/types/applications';
 
@@ -155,14 +156,13 @@ export async function PATCH(
     }
 
     // 10. Send Notification
-    void supabaseAdmin.from('notifications').insert({
-      user_id: applicantId,
-      channel: 'InApp',
-      event_type: 'Application Approved',
+    // Writes the in-app row and attempts email/Slack per the user's preferences.
+    // Fire-and-forget: delivery must never fail or delay the approval response.
+    void deliverNotification({
+      userId: applicantId,
+      eventType: 'Application Approved',
       subject: 'Application Approved',
-      body: `Your application has been approved and you have been added to the team!`,
-      is_read: false,
-      status: 'Sent'
+      body: 'Your application has been approved and you have been added to the team!',
     });
 
     // 11. Return Response
