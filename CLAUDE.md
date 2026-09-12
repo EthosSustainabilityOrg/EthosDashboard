@@ -206,6 +206,26 @@ Never expose raw field names to users. Write "A title is required", not
 "title is required".
 
 ## Deployment
+
 - Live at https://ethosdashboard.vercel.app
-- Vercel auto-deploys from the `main` branch
 - Supabase project: `fwozzqwzkeilelcibype`
+
+### Two repos — pushing is not shipping
+Work is committed and pushed to the org repo `EthosSustainabilityOrg/EthosDashboard`.
+That is where `origin` points, and where history and review live. The personal account
+`ethossustainability/ethosdashboard` holds a fork that is **manually synced**, and Vercel
+auto-deploys `main` from that fork.
+
+So a push does not deploy. The release flow is three steps:
+1. Commit and push to the org repo.
+2. Maintainer manually syncs the personal fork.
+3. Vercel builds from the fork and the change goes live.
+
+The manual step is deliberate, not an oversight: it is a human review gate before
+anything reaches a production app used by minors, and it keeps the flow workable as more
+contributors join. The fork exists because Vercel's free tier cannot deploy from private
+org repos; an attempted GitHub Actions auto-sync between the two was abandoned after
+unresolved "repository not found" errors, which is why the sync is manual.
+
+**Report work as pushed and awaiting sync. Never report it as deployed, shipped, or live
+on the strength of a successful push.** Contributors get added to the org repo.
