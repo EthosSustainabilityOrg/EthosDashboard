@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { PageType, Recent } from '@/types/recents';
 
@@ -72,11 +72,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Re
     );
   }
 
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-
-  if (authError || !user || !claims?.sub) {
+  const auth = await authenticate(req);
+  if (!auth) {
     return NextResponse.json(
       { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
       { status: 401 }
@@ -86,7 +83,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Re
   const { data: recents, error } = await supabaseAdmin
     .from('recents')
     .select('*')
-    .eq('user_id', claims.sub)
+    .eq('user_id', auth.userId)
     .order('visited_at', { ascending: false })
     .limit(10)
     .returns<Recent[]>();

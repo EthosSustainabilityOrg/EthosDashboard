@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { DirectoryProfile } from '@/types/directory-profiles';
 
@@ -14,17 +14,15 @@ export async function PATCH(req: NextRequest): Promise<NextResponse<ApiResponse<
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Missing authorization header' } }, { status: 401 });
 
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-  if (authError || !user || !claims?.sub) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
+  const auth = await authenticate(req);
+  if (!auth) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
 
   const body: unknown = await req.json().catch(() => null);
   if (!isPatchProfileInput(body)) return NextResponse.json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'bio is required' } }, { status: 400 });
 
   const { data: profile, error } = await supabaseAdmin
     .from('directory_profiles')
-    .upsert({ user_id: claims.sub, bio: body.bio }, { onConflict: 'user_id' })
+    .upsert({ user_id: auth.userId, bio: body.bio }, { onConflict: 'user_id' })
     .select()
     .single<DirectoryProfile>();
 

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { PageType } from '@/types/recents';
 
@@ -56,11 +56,8 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
     );
   }
 
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-
-  if (authError || !user || !claims?.sub) {
+  const auth = await authenticate(req);
+  if (!auth) {
     return NextResponse.json(
       { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
       { status: 401 }
@@ -80,7 +77,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
   const { data: existingRecent } = await supabaseAdmin
     .from('recents')
     .select('recent_id')
-    .eq('user_id', claims.sub)
+    .eq('user_id', auth.userId)
     .eq('reference_id', rawBody.reference_id)
     .maybeSingle<RecentIdRow>();
 
@@ -95,7 +92,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
     : await supabaseAdmin
       .from('recents')
       .insert({
-        user_id: claims.sub,
+        user_id: auth.userId,
         page_type: rawBody.page_type,
         reference_id: rawBody.reference_id,
         visited_at: now,
@@ -108,7 +105,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
     );
   }
 
-  await pruneOldRecents(claims.sub);
+  await pruneOldRecents(auth.userId);
 
   return NextResponse.json({
     data: { recorded: true },
