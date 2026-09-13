@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import { extractFileIdFromUrl } from '@/lib/google-drive';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { File, FileCategory } from '@/types/files';
@@ -112,11 +112,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Fi
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
@@ -198,24 +196,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<F
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     if (orgRoleId !== 2 && orgRoleId !== 3) {
       return NextResponse.json(
@@ -282,7 +272,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<F
         );
       }
 
-      if (orgRoleId === 2 && project.created_by !== claims.sub) {
+      if (orgRoleId === 2 && project.created_by !== auth.userId) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot add files to this project' } },
           { status: 403 }
@@ -301,7 +291,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<F
         category: body.category,
         description: body.description ?? null,
         is_policy: body.is_policy ?? false,
-        added_by: claims.sub,
+        added_by: auth.userId,
       })
       .select()
       .single<File>();

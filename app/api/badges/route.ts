@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Badge, BadgeCategory } from '@/types/badges';
 
@@ -74,10 +74,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ba
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
@@ -119,24 +118,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     if (orgRoleId !== 3) {
       return NextResponse.json(
@@ -183,7 +174,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<B
         name: body.name.trim(),
         description: body.description ?? null,
         image_url: body.image_url ?? null,
-        created_by: claims.sub,
+        created_by: auth.userId,
       })
       .select()
       .single<Badge>();
