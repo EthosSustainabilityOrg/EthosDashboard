@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticateBoard } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Donation } from '@/types/fundraising';
 
@@ -18,30 +18,13 @@ function isPatchDonationInput(value: unknown): value is PatchDonationInput {
   );
 }
 
-async function requireBoard(req: NextRequest): Promise<boolean> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-  if (error || !user || !claims?.sub) return false;
-
-  const { data: roleData } = await supabaseAdmin
-    .from('users')
-    .select('org_role_id')
-    .eq('user_id', claims.sub)
-    .maybeSingle();
-
-  return (roleData?.org_role_id ?? 1) === 3;
-}
-
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ donation_id: string }> }
 ): Promise<NextResponse<ApiResponse<Donation>>> {
   const { donation_id: donationId } = await params;
 
-  if (!(await requireBoard(req))) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
+  if (!(await authenticateBoard(req))) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
 
   const body: unknown = await req.json().catch(() => null);
   if (!isPatchDonationInput(body)) {
@@ -71,7 +54,7 @@ export async function DELETE(
 ): Promise<NextResponse<ApiResponse<DeleteDonationResponse>>> {
   const { donation_id: donationId } = await params;
 
-  if (!(await requireBoard(req))) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
+  if (!(await authenticateBoard(req))) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
 
   const { error } = await supabaseAdmin.from('donations').delete().eq('donation_id', donationId);
   if (error) return NextResponse.json({ data: null, error: { code: 'VALIDATION_ERROR', message: error.message } }, { status: 400 });
