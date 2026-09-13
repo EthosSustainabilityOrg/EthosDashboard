@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { FileCategory } from '@/types/files';
 
@@ -36,11 +36,9 @@ export async function DELETE(
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
@@ -67,19 +65,13 @@ export async function DELETE(
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     const isBoard = orgRoleId === 3;
     const isLeadOwnProjectFile =
       orgRoleId === 2 &&
       file.category === 'Project' &&
-      file.projects?.created_by === claims.sub;
+      file.projects?.created_by === auth.userId;
 
     if (!isBoard && !isLeadOwnProjectFile) {
       return NextResponse.json(

@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Badge, UserBadge } from '@/types/badges';
 
@@ -45,24 +45,16 @@ export async function POST(
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     if (orgRoleId !== 2 && orgRoleId !== 3) {
       return NextResponse.json(
@@ -113,7 +105,7 @@ export async function POST(
         );
       }
 
-      if (!badge.project_id || badge.projects?.created_by !== claims.sub) {
+      if (!badge.project_id || badge.projects?.created_by !== auth.userId) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Project Leads can only award own project Participation badges' } },
           { status: 403 }
@@ -155,7 +147,7 @@ export async function POST(
       .insert({
         user_id: body.user_id,
         badge_id: badgeId,
-        awarded_by: claims.sub,
+        awarded_by: auth.userId,
         note: body.note ?? null,
       })
       .select()
