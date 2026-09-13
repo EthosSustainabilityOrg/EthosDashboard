@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { NotificationPreferences } from '@/types/notification-preferences';
 
@@ -50,20 +50,9 @@ async function getPreferences(userId: string): Promise<NotificationPreferences |
   return data;
 }
 
-async function requireUser(req: NextRequest): Promise<string | null> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-
-  if (error || !user || !claims?.sub) return null;
-  return claims.sub;
-}
-
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<NotificationPreferences>>> {
-  const userId = await requireUser(req);
+  const auth = await authenticate(req);
+  const userId = auth?.userId ?? null;
   if (!userId) {
     return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
   }
@@ -77,7 +66,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<No
 }
 
 export async function PATCH(req: NextRequest): Promise<NextResponse<ApiResponse<NotificationPreferences>>> {
-  const userId = await requireUser(req);
+  const auth = await authenticate(req);
+  const userId = auth?.userId ?? null;
   if (!userId) {
     return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
   }

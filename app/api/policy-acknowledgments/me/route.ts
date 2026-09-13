@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { PolicyAcknowledgment } from '@/types/policy-acknowledgments';
 
@@ -13,17 +13,9 @@ function isAcknowledgmentInput(value: unknown): value is AcknowledgmentInput {
   return Boolean(value && typeof value === 'object' && typeof (value as Record<string, unknown>).file_id === 'string');
 }
 
-async function requireUser(req: NextRequest): Promise<string | null> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-  return !error && user && claims?.sub ? claims.sub : null;
-}
-
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<AcknowledgmentsResponse>>> {
-  const userId = await requireUser(req);
+  const auth = await authenticate(req);
+  const userId = auth?.userId ?? null;
   if (!userId) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
 
   const { data: files, error: filesError } = await supabaseAdmin.from('files').select('file_id, file_name').eq('is_policy', true).order('file_name').returns<PolicyFileRow[]>();
@@ -49,7 +41,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ac
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<PolicyAcknowledgment>>> {
-  const userId = await requireUser(req);
+  const auth = await authenticate(req);
+  const userId = auth?.userId ?? null;
   if (!userId) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
 
   const body: unknown = await req.json().catch(() => null);
