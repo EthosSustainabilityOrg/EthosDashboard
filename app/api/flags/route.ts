@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { VolunteerFlag } from '@/types/volunteer-flags';
 
@@ -30,23 +30,6 @@ function isCreateFlagInput(value: unknown): value is CreateFlagInput {
   );
 }
 
-async function requireUser(req: NextRequest): Promise<{ userId: string; roleId: number } | null> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-  if (error || !user || !claims?.sub) return null;
-
-  const { data: roleData } = await supabaseAdmin
-    .from('users')
-    .select('org_role_id')
-    .eq('user_id', claims.sub)
-    .maybeSingle();
-
-  return { userId: claims.sub, roleId: roleData?.org_role_id ?? 1 };
-}
-
 async function isApprovedOnProject(userId: string, projectId: string): Promise<boolean> {
   const { data } = await supabaseAdmin
     .from('applications')
@@ -59,9 +42,9 @@ async function isApprovedOnProject(userId: string, projectId: string): Promise<b
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<VolunteerFlag>>> {
-  const auth = await requireUser(req);
+  const auth = await authenticate(req);
   if (!auth) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
-  if (auth.roleId !== 2 && auth.roleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Lead or Board only' } }, { status: 403 });
+  if (auth.orgRoleId !== 2 && auth.orgRoleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Lead or Board only' } }, { status: 403 });
 
   const body: unknown = await req.json().catch(() => null);
   if (!isCreateFlagInput(body)) return NextResponse.json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'A volunteer and project are required' } }, { status: 400 });
@@ -73,7 +56,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<V
     .maybeSingle<{ project_id: string; created_by: string }>();
 
   if (!project) return NextResponse.json({ data: null, error: { code: 'NOT_FOUND', message: 'Project not found' } }, { status: 404 });
-  if (auth.roleId === 2 && project.created_by !== auth.userId) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Lead must own project' } }, { status: 403 });
+  if (auth.orgRoleId === 2 && project.created_by !== auth.userId) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Lead must own project' } }, { status: 403 });
   if (!(await isApprovedOnProject(body.user_id, body.project_id))) return NextResponse.json({ data: null, error: { code: 'VALIDATION_ERROR', message: 'Flagged user must be approved on project' } }, { status: 400 });
 
   if (body.shift_id) {
@@ -104,9 +87,9 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<V
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<FlagsResponse>>> {
-  const auth = await requireUser(req);
+  const auth = await authenticate(req);
   if (!auth) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
-  if (auth.roleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
+  if (auth.orgRoleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
 
   const resolvedParam = req.nextUrl.searchParams.get('resolved');
   const resolved = parseBooleanParam(resolvedParam);

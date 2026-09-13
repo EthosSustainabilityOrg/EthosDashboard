@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Donation } from '@/types/fundraising';
 
@@ -28,23 +28,6 @@ function isCreateDonationInput(value: unknown): value is CreateDonationInput {
   );
 }
 
-async function requireUser(req: NextRequest): Promise<{ userId: string; roleId: number } | null> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-  if (error || !user || !claims?.sub) return null;
-
-  const { data: roleData } = await supabaseAdmin
-    .from('users')
-    .select('org_role_id')
-    .eq('user_id', claims.sub)
-    .maybeSingle();
-
-  return { userId: claims.sub, roleId: roleData?.org_role_id ?? 1 };
-}
-
 async function hydrateDonations(donations: Donation[]): Promise<DonationListItem[]> {
   const contactIds = Array.from(new Set(donations.flatMap((donation) => donation.contact_id ? [donation.contact_id] : [])));
   const { data: contacts } = contactIds.length > 0
@@ -59,7 +42,7 @@ async function hydrateDonations(donations: Donation[]): Promise<DonationListItem
 }
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<DonationsResponse>>> {
-  const auth = await requireUser(req);
+  const auth = await authenticate(req);
   if (!auth) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
 
   const page = parsePositiveInt(req.nextUrl.searchParams.get('page'), 1, 1000);
@@ -83,9 +66,9 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Do
 }
 
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<Donation>>> {
-  const auth = await requireUser(req);
+  const auth = await authenticate(req);
   if (!auth) return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
-  if (auth.roleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
+  if (auth.orgRoleId !== 3) return NextResponse.json({ data: null, error: { code: 'FORBIDDEN', message: 'Board only' } }, { status: 403 });
 
   const body: unknown = await req.json().catch(() => null);
   if (!isCreateDonationInput(body)) {
