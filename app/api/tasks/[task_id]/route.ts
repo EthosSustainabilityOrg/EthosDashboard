@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Task, TaskStatus } from '@/types/tasks';
 
@@ -122,11 +122,9 @@ export async function PATCH(
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
@@ -149,17 +147,11 @@ export async function PATCH(
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     const isBoard = orgRoleId === 3;
-    const isLeadOnProject = orgRoleId === 2 && task.projects?.created_by === claims.sub;
-    const isAssignedMember = task.assigned_to === claims.sub;
+    const isLeadOnProject = orgRoleId === 2 && task.projects?.created_by === auth.userId;
+    const isAssignedMember = task.assigned_to === auth.userId;
 
     if (!isBoard && !isLeadOnProject && !isAssignedMember) {
       return NextResponse.json(
@@ -226,7 +218,7 @@ export async function PATCH(
       );
     }
 
-    if (body.status && body.status !== task.status && task.created_by !== claims.sub) {
+    if (body.status && body.status !== task.status && task.created_by !== auth.userId) {
       await supabaseAdmin
         .from('notifications')
         .insert({
@@ -265,11 +257,9 @@ export async function DELETE(
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
@@ -284,16 +274,10 @@ export async function DELETE(
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     const isBoard = orgRoleId === 3;
-    const isLeadOnProject = orgRoleId === 2 && task.projects?.created_by === claims.sub;
+    const isLeadOnProject = orgRoleId === 2 && task.projects?.created_by === auth.userId;
 
     if (!isBoard && !isLeadOnProject) {
       return NextResponse.json(

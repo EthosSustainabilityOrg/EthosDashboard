@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse, PaginatedResponse } from '@/types/api';
 import type { Task, TaskStatus } from '@/types/tasks';
 
@@ -152,24 +152,16 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ta
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     const searchParams = req.nextUrl.searchParams;
     const projectId = searchParams.get('project_id');
@@ -208,7 +200,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ta
       );
     }
 
-    if (orgRoleId === 1 && assignedTo && assignedTo !== claims.sub) {
+    if (orgRoleId === 1 && assignedTo && assignedTo !== auth.userId) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Members can only filter assigned_to by themselves' } },
         { status: 403 }
@@ -216,12 +208,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ta
     }
 
     // Member fetching their own tasks by assigned_to (no project_id): assignedTo is
-    // already verified to equal claims.sub above, and the assigned_to filter below
+    // already verified to equal auth.userId above, and the assigned_to filter below
     // scopes the query to their own tasks, so no project-based restriction is needed.
     const authorizedProjectIds =
       orgRoleId === 1 && !projectId && assignedTo
         ? null
-        : await getAuthorizedProjectIds(claims.sub, orgRoleId, projectId);
+        : await getAuthorizedProjectIds(auth.userId, orgRoleId, projectId);
 
     if (authorizedProjectIds !== null && authorizedProjectIds.length === 0) {
       return NextResponse.json({
@@ -279,24 +271,16 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user || !claims?.sub) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     if (orgRoleId !== 2 && orgRoleId !== 3) {
       return NextResponse.json(
@@ -328,7 +312,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
       );
     }
 
-    if (orgRoleId === 2 && project.created_by !== claims.sub) {
+    if (orgRoleId === 2 && project.created_by !== auth.userId) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Cannot create tasks for this project' } },
         { status: 403 }
@@ -357,7 +341,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<T
       .insert({
         project_id: body.project_id,
         assigned_to: assignedTo,
-        created_by: claims.sub,
+        created_by: auth.userId,
         title: body.title.trim(),
         description: body.description ?? null,
         status: body.status ?? 'Not Started',
