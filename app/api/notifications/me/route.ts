@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Notification } from '@/types/notifications';
 
@@ -31,11 +31,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<No
     return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } }, { status: 401 });
   }
 
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-
-  if (authError || !user || !claims?.sub) {
+  const auth = await authenticate(req);
+  if (!auth) {
     return NextResponse.json({ data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } }, { status: 401 });
   }
 
@@ -53,7 +50,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<No
   let query = supabaseAdmin
     .from('notifications')
     .select('*', { count: 'exact' })
-    .eq('user_id', claims.sub)
+    .eq('user_id', auth.userId)
     .order('sent_at', { ascending: false })
     .range(from, to);
 
@@ -67,7 +64,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<No
   const { count: unreadCount, error: unreadError } = await supabaseAdmin
     .from('notifications')
     .select('*', { count: 'exact', head: true })
-    .eq('user_id', claims.sub)
+    .eq('user_id', auth.userId)
     .eq('is_read', false);
 
   if (unreadError) {
