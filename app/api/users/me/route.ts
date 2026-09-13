@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { User } from '@/types/users';
 import type { OrgRoleName } from '@/types/auth';
@@ -109,21 +109,16 @@ async function requireUserId(req: NextRequest): Promise<string | NextResponse<Ap
     );
   }
 
-  const token = authHeader.split(' ')[1];
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
+  const auth = await authenticate(req);
 
-  if (authError || !user || !claims?.sub) {
+  if (!auth) {
     return NextResponse.json(
       { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
       { status: 401 },
     );
   }
 
-  return claims.sub;
+  return auth.userId;
 }
 
 async function fetchMe(userId: string): Promise<MeResponse | null> {

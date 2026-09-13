@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { User } from '@/types/users';
 
@@ -20,10 +21,9 @@ export async function PATCH(
         { status: 401 }
       );
     }
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
+    const auth = await authenticate(req);
+
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
@@ -31,13 +31,7 @@ export async function PATCH(
     }
 
     // 2. Enforce Scope: Board only
-    const { data: caller } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (!caller || caller.org_role_id !== 3) {
+    if (auth.orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Board access required' } },
         { status: 403 }
@@ -96,7 +90,7 @@ export async function PATCH(
     void supabaseAdmin.from('system_logs').insert({
       integration: 'Supabase',
       error_type: 'Audit Log - Role Change',
-      error_message: `User ${user.id} changed role of ${targetUserId} from ${targetUser.org_role_id} to ${body.org_role_id}`,
+      error_message: `User ${auth.userId} changed role of ${targetUserId} from ${targetUser.org_role_id} to ${body.org_role_id}`,
       affected_user_id: targetUserId,
       resolved: true
     });
