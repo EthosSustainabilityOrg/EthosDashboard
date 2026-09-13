@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import { CONSENT_TEMPLATE_ID, sendDocument } from '@/lib/opensign';
 import type { ApiResponse } from '@/types/api';
 import type { WaiverStatus } from '@/types/onboarding';
@@ -56,20 +56,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<S
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
-
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
         { status: 401 }
       );
     }
@@ -84,7 +75,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<S
     const { data: signingUser, error: userError } = await supabaseAdmin
       .from('users')
       .select('guardian_name, guardian_email')
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .maybeSingle<GuardianSigningInfo>();
 
     if (userError || !signingUser) {
@@ -123,7 +114,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<S
         parental_consent_doc_id: consentDocId,
         parental_consent_status: 'Sent',
       })
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .select('parental_consent_status, parental_consent_doc_id')
       .maybeSingle<SendParentalConsentResponse>();
 

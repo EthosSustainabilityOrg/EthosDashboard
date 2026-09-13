@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 
 type ConnectSlackResponse = {
@@ -60,20 +60,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<C
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
-
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
         { status: 401 }
       );
     }
@@ -128,7 +119,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<C
     const { error: userUpdateError } = await supabaseAdmin
       .from('users')
       .update({ slack_user_id: slackUserId })
-      .eq('user_id', claims.sub);
+      .eq('user_id', auth.userId);
 
     if (userUpdateError) {
       return NextResponse.json(
@@ -144,7 +135,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<C
         slack_connected: true,
         slack_connected_at: now,
       })
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .select('slack_connected')
       .maybeSingle();
 

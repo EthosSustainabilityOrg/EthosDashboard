@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Onboarding, OrientationProgress } from '@/types/onboarding';
 
@@ -46,20 +46,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<On
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
-
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
         { status: 401 }
       );
     }
@@ -85,7 +76,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<On
     const { data: onboarding, error: onboardingError } = await supabaseAdmin
       .from('onboarding')
       .select(onboardingColumns)
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .maybeSingle<OnboardingRow>();
 
     if (onboardingError) {
@@ -106,7 +97,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<On
       const { data: existingUser } = await supabaseAdmin
         .from('users')
         .select('user_id')
-        .eq('user_id', claims.sub)
+        .eq('user_id', auth.userId)
         .maybeSingle();
 
       if (!existingUser) {
@@ -119,7 +110,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<On
       const { data: createdOnboarding, error: createOnboardingError } = await supabaseAdmin
         .from('onboarding')
         .insert({
-          user_id: claims.sub,
+          user_id: auth.userId,
           slack_connected: false,
           waiver_status: 'Not Started',
           parental_consent_status: 'Not Started',

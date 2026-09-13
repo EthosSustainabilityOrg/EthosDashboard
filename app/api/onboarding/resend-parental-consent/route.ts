@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import { sendEmail } from '@/lib/resend';
 import type { ApiResponse } from '@/types/api';
 
@@ -37,20 +37,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
-
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
         { status: 401 }
       );
     }
@@ -58,7 +49,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
     const { data: onboarding, error: onboardingError } = await supabaseAdmin
       .from('onboarding')
       .select('parental_consent_doc_id')
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .maybeSingle<ConsentDocumentInfo>();
 
     if (onboardingError || !onboarding) {
@@ -78,7 +69,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
     const { data: latestReminder, error: reminderError } = await supabaseAdmin
       .from('notifications')
       .select('sent_at')
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .eq('event_type', 'Parental Consent Reminder')
       .order('sent_at', { ascending: false })
       .limit(1)
@@ -110,7 +101,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
     const { data: signingUser, error: userError } = await supabaseAdmin
       .from('users')
       .select('guardian_email')
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .maybeSingle<GuardianReminderInfo>();
 
     if (userError || !signingUser) {
@@ -141,7 +132,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<R
     const { error: notificationError } = await supabaseAdmin
       .from('notifications')
       .insert({
-        user_id: claims.sub,
+        user_id: auth.userId,
         sent_to_email: null,
         sent_to_slack_user_id: null,
         channel: 'InApp',

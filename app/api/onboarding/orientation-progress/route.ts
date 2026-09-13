@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import { unlockOnboardingIfApproved } from '@/lib/onboarding';
 import type { ApiResponse } from '@/types/api';
 import type { Onboarding, OrientationProgress } from '@/types/onboarding';
@@ -91,20 +91,11 @@ export async function PATCH(req: NextRequest): Promise<NextResponse<ApiResponse<
       );
     }
 
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
+    const auth = await authenticate(req);
 
-    if (authError || !user) {
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
-
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
         { status: 401 }
       );
     }
@@ -141,7 +132,7 @@ export async function PATCH(req: NextRequest): Promise<NextResponse<ApiResponse<
         parental_consent_signed_at,
         completed_at
       `)
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .maybeSingle<OnboardingRow>();
 
     if (fetchError || !onboarding) {
