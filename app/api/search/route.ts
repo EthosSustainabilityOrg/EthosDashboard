@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import { formatDate as formatOrgDate } from '@/lib/format-date';
 
@@ -100,26 +100,19 @@ function formatDate(value: string): string {
   });
 }
 
+/**
+ * Adapts the shared auth helper to this file's local AuthContext shape, which the
+ * five search functions below already destructure as `roleId`. Keeping the adapter
+ * removes the duplicated auth prologue without touching those call sites.
+ */
 async function requireUser(req: NextRequest): Promise<AuthContext | null> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return null;
-
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
-
-  if (error || !user || !claims?.sub) return null;
-
-  const { data: userData } = await supabaseAdmin
-    .from('users')
-    .select('org_role_id, chapter_id')
-    .eq('user_id', claims.sub)
-    .maybeSingle();
+  const auth = await authenticate(req);
+  if (!auth) return null;
 
   return {
-    userId: claims.sub,
-    roleId: userData?.org_role_id ?? 1,
-    chapterId: userData?.chapter_id ?? null,
+    userId: auth.userId,
+    roleId: auth.orgRoleId,
+    chapterId: auth.chapterId,
   };
 }
 
