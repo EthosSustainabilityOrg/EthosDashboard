@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { ProjectUpdate } from '@/types/project-updates';
 
@@ -46,11 +46,9 @@ export async function GET(
     );
   }
 
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-  const claims = extractClaims(token);
+  const auth = await authenticate(req);
 
-  if (authError || !user || !claims?.sub) {
+  if (!auth) {
     return NextResponse.json(
       { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
       { status: 401 }
@@ -70,18 +68,12 @@ export async function GET(
     );
   }
 
-  const { data: roleData } = await supabaseAdmin
-    .from('users')
-    .select('org_role_id')
-    .eq('user_id', claims.sub)
-    .maybeSingle();
-
-  const orgRoleId = roleData?.org_role_id ?? 1;
+  const orgRoleId = auth.orgRoleId;
 
   const canRead =
     orgRoleId === 3 ||
-    project.created_by === claims.sub ||
-    await isApprovedMember(claims.sub, projectId);
+    project.created_by === auth.userId ||
+    await isApprovedMember(auth.userId, projectId);
 
   if (!canRead) {
     return NextResponse.json(
