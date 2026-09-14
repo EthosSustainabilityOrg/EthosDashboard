@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Project } from '@/types/projects';
 
@@ -89,23 +89,17 @@ export async function GET(
         { status: 401 }
       );
     }
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
+    const auth = await authenticate(req);
+
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
-    const { data: userData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id, chapter_id')
-      .eq('user_id', user.id)
-      .maybeSingle();
 
-    const orgRoleId = userData?.org_role_id ?? 1;
-    const chapterId = userData?.chapter_id ?? null;
+    const orgRoleId = auth.orgRoleId;
+    const chapterId = auth.chapterId;
 
     const { project_id: projectId } = await params;
 
@@ -167,7 +161,7 @@ export async function GET(
         const canView =
           p.chapter_id === chapterId ||
           p.is_open_call ||
-          p.created_by === user.id;
+          p.created_by === auth.userId;
         if (!canView) {
           return NextResponse.json(
             { data: null, error: { code: 'FORBIDDEN', message: 'Cannot view this project' } },
@@ -175,7 +169,7 @@ export async function GET(
           );
         }
         // If not published, only the creator can view
-        if (!p.is_published && p.created_by !== user.id) {
+        if (!p.is_published && p.created_by !== auth.userId) {
           return NextResponse.json(
             { data: null, error: { code: 'FORBIDDEN', message: 'Cannot view unpublished projects' } },
             { status: 403 }
@@ -280,19 +274,11 @@ export async function PATCH(
         { status: 401 }
       );
     }
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
+    const auth = await authenticate(req);
+
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
         { status: 401 }
       );
     }
@@ -321,16 +307,10 @@ export async function PATCH(
     }
 
     // 3. Enforce Scope: Board or (Project Lead AND created_by = self)
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     if (orgRoleId !== 3) {
-      if (orgRoleId !== 2 || existing.created_by !== claims.sub) {
+      if (orgRoleId !== 2 || existing.created_by !== auth.userId) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot update this project' } },
           { status: 403 }
