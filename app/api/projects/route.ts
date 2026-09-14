@@ -5,9 +5,8 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
-import type { JwtClaims } from '@/types/auth';
 import type { Project } from '@/types/projects';
 
 type UpcomingShift = {
@@ -68,28 +67,13 @@ type ProjectsResponse = {
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<ProjectsResponse>>> {
   try {
-    // 1. Auth check — optional for this endpoint
-    const authHeader = req.headers.get('authorization');
-    let claims: JwtClaims | null = null;
-    let orgRoleId: number | null = null;
-    let chapterId: string | null = null;
-
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.split(' ')[1];
-      const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-      if (!authError && user) {
-        claims = extractClaims(token);
-        if (claims?.sub) {
-          const { data: userData } = await supabaseAdmin
-            .from('users')
-            .select('org_role_id, chapter_id')
-            .eq('user_id', claims.sub)
-            .maybeSingle();
-          orgRoleId = userData?.org_role_id ?? 1;
-          chapterId = userData?.chapter_id ?? null;
-        }
-      }
-    }
+    // 1. Auth check — optional for this endpoint.
+    // authenticate() returns null for a missing header AND for an invalid token,
+    // which matches the previous behaviour: either fell through to the
+    // unauthenticated, published-only view rather than returning 401.
+    const auth = await authenticate(req);
+    const orgRoleId: number | null = auth?.orgRoleId ?? null;
+    const chapterId: string | null = auth?.chapterId ?? null;
 
     // 2. Parse Query Params
     const url = new URL(req.url);
@@ -126,10 +110,11 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
       `, { count: 'exact' });
 
     // 4. Enforce Scoping Rules
-    // NOTE: chapterId comes from a DB lookup (JWT custom claims are not reliably populated).
-    // claims.sub comes from the server-verified JWT. Neither must be replaced with
+    // NOTE: orgRoleId and chapterId come from a DB lookup inside authenticate(),
+    // because JWT custom claims are not reliably populated. auth.userId comes from
+    // the signature-verified getUser response. Neither must be replaced with
     // user-supplied query parameters, to ensure strict data scoping.
-    if (!claims) {
+    if (!auth) {
       // Unauthenticated: Published only, never closed
       query = query.is('closed_at', null).eq('is_published', true);
       
@@ -140,7 +125,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Pr
       // Project Lead: Never closed. Own chapter published + Open calls published + Own unpublished drafts
       const leadFilters = [
         `and(is_open_call.eq.true,is_published.eq.true)`,
-        `and(created_by.eq.${claims.sub},is_published.eq.false)`,
+        `and(created_by.eq.${auth.userId},is_published.eq.false)`,
       ];
       if (chapterId) {
         leadFilters.unshift(`and(chapter_id.eq.${chapterId},is_published.eq.true)`);
@@ -292,23 +277,19 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<P
         { status: 401 }
       );
     }
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
+    const auth = await authenticate(req);
+
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
-    
-    const { data: userData, error: userError } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id, chapter_id')
-      .eq('user_id', user.id)
-      .single();
 
-    if (userError || !userData) {
+    // users.chapter_id is NOT NULL, so a null chapter means the caller has no
+    // users row yet. Previously a .single() on that row errored into this same
+    // 401, so the status and message are preserved.
+    if (auth.chapterId === null) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'User profile not found' } },
         { status: 401 }
@@ -316,7 +297,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<P
     }
 
     // 2. Enforce Scope: Project Lead or Board
-    if (userData.org_role_id !== 2 && userData.org_role_id !== 3) {
+    if (auth.orgRoleId !== 2 && auth.orgRoleId !== 3) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Project creation requires Project Lead or Board access' } },
         { status: 403 }
@@ -333,7 +314,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<P
     }
 
     // 4. Enforce Chapter Scope
-    if (userData.org_role_id === 2 && body.chapter_id !== userData.chapter_id) {
+    if (auth.orgRoleId === 2 && body.chapter_id !== auth.chapterId) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'Project Leads can only create projects for their own chapter' } },
         { status: 403 }
@@ -369,7 +350,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<P
         is_open_call: body.is_open_call,
         open_call_app_level: body.is_open_call ? body.open_call_app_level : null,
         is_published: false,
-        created_by: user.id
+        created_by: auth.userId
       })
       .select()
       .single();
