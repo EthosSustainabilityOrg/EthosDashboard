@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticate } from '@/lib/api-auth';
 import { inviteToChannel } from '@/lib/slack';
 import { unlockOnboardingIfApproved } from '@/lib/onboarding';
 import { deliverNotification } from '@/lib/notifications';
@@ -24,30 +24,16 @@ export async function PATCH(
         { status: 401 }
       );
     }
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
+    const auth = await authenticate(req);
+
+    if (!auth) {
       return NextResponse.json(
         { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
         { status: 401 }
       );
     }
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
-        { status: 401 }
-      );
-    }
 
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     const { application_id: applicationId } = await params;
 
@@ -77,7 +63,7 @@ export async function PATCH(
     const userRow = Array.isArray(appData.users) ? appData.users[0] : appData.users;
 
     if (orgRoleId !== 3) {
-      if (orgRoleId !== 2 || projectRow?.created_by !== claims.sub) {
+      if (orgRoleId !== 2 || projectRow?.created_by !== auth.userId) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot approve applications for this project' } },
           { status: 403 }
@@ -108,7 +94,7 @@ export async function PATCH(
       .update({
         status: 'Approved',
         project_role_id: body.project_role_id,
-        reviewed_by: claims.sub,
+        reviewed_by: auth.userId,
         reviewed_at: new Date().toISOString()
       })
       .eq('application_id', applicationId)
