@@ -79,6 +79,31 @@ export async function PATCH(
       );
     }
 
+    // 4b. Enforce the 3-active-project limit at approval time.
+    // AGENTS.md specifies this rule belongs here. POST /api/applications also
+    // checks it, but that check is stale by the time a Lead approves: a member
+    // may hold several pending applications that each passed independently when
+    // submitted, and approving them all would take the member past the limit.
+    const { count: activeCount, error: activeError } = await supabaseAdmin
+      .from('applications')
+      .select('application_id', { count: 'exact', head: true })
+      .eq('user_id', appData.user_id)
+      .eq('status', 'Approved');
+
+    if (activeError) {
+      return NextResponse.json(
+        { data: null, error: { code: 'VALIDATION_ERROR', message: activeError.message } },
+        { status: 400 }
+      );
+    }
+
+    if ((activeCount ?? 0) >= 3) {
+      return NextResponse.json(
+        { data: null, error: { code: 'LIMIT_REACHED', message: 'This volunteer already has 3 active projects' } },
+        { status: 409 }
+      );
+    }
+
     // 5. Parse Body
     const body = await req.json().catch(() => null);
     if (!body || !body.project_role_id) {
