@@ -268,6 +268,90 @@ would be worse: the user's edit would silently never reach the server. A real fi
 PATCHing or DELETEing already-created children, which is a larger change and is now
 priority 2.
 
+## API auth consolidation — complete
+
+✅ Complete (2026-09-12 to 2026-09-17), 17 commits, `d116917` through this one.
+
+**What changed.** The API had thirteen route files each defining their own local
+`requireUser`/`requireBoard`, with five different return signatures, plus thirty-eight
+routes repeating the verify-then-look-up-role prologue inline. That is the same
+condition that made the JWT-claims bug cost thirty-three separate fixes: no single
+place to fix.
+
+`lib/api-auth.ts` is now the one auth path:
+- `authenticate(req)` verifies the Bearer token and resolves role and chapter from the
+  database, defaulting role to 1 (Member).
+- `authenticateBoard(req)` / `authenticateLeadOrBoard(req)` build on it.
+- `authenticateWithAccount(req)` additionally returns the raw Supabase account, for the
+  one route that provisions a `users` row from the Google profile.
+- `apiError` / `unauthorized` / `forbidden` emit the spec envelope.
+
+Identity now comes from `user.id` on the signature-verified `getUser` response rather
+than `claims.sub`, which was a base64 decode that verifies nothing. The two agreed only
+because `getUser` ran first; forty-nine routes depended on that ordering.
+
+**Scale:** 13 local helpers to 3 thin adapters plus 1 holdout. 38 inline prologues to 1.
+Roughly 800 lines of duplicated auth removed and about 30 redundant `users` queries
+dropped, since `authenticate()` returns the role the routes were re-querying.
+
+**Six distinct prologue shapes** were found, which is the real measure of the drift:
+combined guard with a block, combined guard as a single-line return, split guards with a
+separate `Invalid token payload` variant, verify-only with no claims decode, a
+multi-line destructure with a combined guard, and an optional-auth variant.
+
+**What was verified.** `tsc --noEmit` and `eslint` before every commit, both clean, in a
+cloned checkout with real dependencies. Every working copy was diffed against `HEAD`
+before being written. Authorization predicates were re-read by hand after each batch
+rather than inferred from diff stats: the tasks per-record rules, the project visibility
+matrix, the chapter scoping in `users/directory` and `users/[user_id]`, the ownership
+guards on close/publish/shifts/roles, the consent gate in orientation-progress, and the
+approve path's Board-or-owning-Lead check plus `unlockOnboardingIfApproved`.
+
+**Not runtime-tested.** Nothing here was exercised against the live deployment or the
+database. `tsc` cannot see an RLS denial, a wrong scope filter, or a 403 that should be
+a 401. The changes are behaviour-preserving by construction and by inspection, not by
+observation. A click-through of the Board, Lead and Member flows is still owed.
+
+**Behaviour changes, all deliberate and small:**
+- The `Invalid token payload` 401 variant is gone from the routes that had it. It sat
+  after a `getUser` that had already succeeded, so a valid Supabase JWT always had `sub`
+  by that point and the branch was dead. Those routes now return `Invalid token`.
+- `badges` GET now performs a `users` lookup it did not before, because `authenticate()`
+  always resolves role. One primary-key read on a route that reads no role. Taken
+  deliberately rather than adding a fourth verify-only entry point, on the grounds that
+  more ways to authenticate is the problem we were fixing.
+- `projects` POST reconstructs its `User profile not found` 401 from a null `chapterId`
+  rather than a `.single()` error. Equivalent, because `users.chapter_id` is NOT NULL.
+
+**Still open:** `announcements` is the one unmigrated route, held on a product decision
+(see Needs Decision). The three remaining `require*` functions in `users/me`, `search`
+and `applications` are thin adapters over the shared helper that exist only to preserve
+local return shapes; that is intentional, not a loose end.
+
+## Max 3 active projects — now enforced at approval
+
+✅ Fixed (2026-09-17) — `app/api/applications/[application_id]/approve/route.ts`.
+
+`AGENTS.md` states the rule is "enforced in PATCH /api/applications/:id/approve". It was
+not. Both limit checks lived in `POST /api/applications`, at submission time, and that
+check is stale by the time it matters.
+
+The hole: a member with 2 active projects applies to two more. Each submission passes
+independently, because 2 < 3 at the moment of each check. A Lead approves both. The
+member now holds 4 active projects, past a limit the spec says exists.
+
+Approval is the moment a project becomes active, so approval is where the count has to
+be checked. `approve` now counts the applicant's `Approved` applications and returns 409
+`LIMIT_REACHED` at 3 or more, before parsing the body or touching any row. The message
+addresses the approver ("This volunteer already has 3 active projects") since a Lead or
+Board member is the caller.
+
+**Related, not fixed:** the two HQ rules have the same staleness problem. HQ-project
+members cannot join another project, and an HQ project must be a member's only active
+project, but both are only checked at submission. `AGENTS.md` specifies POST as the
+enforcement point for those, so tightening them at approval would be a spec change
+rather than spec compliance. Worth a decision.
+
 ## Needs Decision
 
 Items that require a product decision, not a code fix. Do not guess at these — see
@@ -356,6 +440,8 @@ started without a spec amendment and an explicit product decision.
 - OpenSign webhook header name unverified against real OpenSign docs
 - `@dnd-kit` not installed (kanban drag deferred)
 - `types/supabase-ssr.d.ts` shim still present (real package installed on Vercel, shim only affects local dev)
+- The API auth consolidation is unverified at runtime — typecheck and inspection only. A Board/Lead/Member click-through of the live deployment is owed
+- The two HQ project rules are enforced only at application submission, not at approval, so the same staleness hole the 3-active-project fix closed still exists for them
 - ~60 files show as modified with CRLF-only line-ending churn and zero content change (`git diff --ignore-cr-at-eol` is empty repo-wide); `core.autocrlf` is unset on the Windows machine. Not committed. Worth a `.gitattributes` decision rather than letting it ride
 
 ## Next priorities
