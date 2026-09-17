@@ -4,12 +4,10 @@
  * POST /api/applications
  */
 import { NextRequest, NextResponse } from 'next/server';
-import type { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { authenticateWithAccount, type AuthedAccount } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Application, ApplicationStatus } from '@/types/applications';
-import type { JwtClaims } from '@/types/auth';
 
 type ApplicationListItem = Application & {
   applicant_name: string;
@@ -59,10 +57,7 @@ type RawUserApp = {
   projects: { project_type_id: number } | { project_type_id: number }[] | null;
 };
 
-type AuthContext = {
-  claims: JwtClaims;
-  user: User;
-};
+type AuthContext = AuthedAccount;
 
 const applicationStatuses: ApplicationStatus[] = ['Pending', 'Approved', 'Rejected', 'Withdrawn'];
 
@@ -110,6 +105,12 @@ function parseCreateApplicationInput(value: unknown): CreateApplicationInput | n
   };
 }
 
+/**
+ * POST needs the raw Supabase account (email, user_metadata) to provision a
+ * users row on a member's first application, so this uses
+ * authenticateWithAccount rather than authenticate. The header check stays
+ * inline to keep its distinct 401 message.
+ */
 async function requireAuth(req: NextRequest): Promise<AuthContext | NextResponse<ApiResponse<never>>> {
   const authHeader = req.headers.get('authorization');
 
@@ -120,29 +121,16 @@ async function requireAuth(req: NextRequest): Promise<AuthContext | NextResponse
     );
   }
 
-  const token = authHeader.split(' ')[1];
-  const {
-    data: { user },
-    error: authError,
-  } = await supabaseAdmin.auth.getUser(token);
+  const auth = await authenticateWithAccount(req);
 
-  if (authError || !user) {
+  if (!auth) {
     return NextResponse.json(
       { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
       { status: 401 },
     );
   }
 
-  const claims = extractClaims(token);
-
-  if (!claims?.sub) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
-      { status: 401 },
-    );
-  }
-
-  return { claims, user };
+  return auth;
 }
 
 function mapApplication(row: RawApplicationRow): ApplicationListItem {
@@ -175,15 +163,7 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
     const auth = await requireAuth(req);
     if (auth instanceof NextResponse) return auth;
 
-    const { claims } = auth;
-
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     const url = new URL(req.url);
     const projectId = url.searchParams.get('project_id');
@@ -231,12 +211,12 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ap
       );
 
     if (orgRoleId === 1) {
-      query = query.eq('user_id', claims.sub);
+      query = query.eq('user_id', auth.userId);
     } else if (orgRoleId === 2) {
       const { data: ownProjects, error: projectsError } = await supabaseAdmin
         .from('projects')
         .select('project_id')
-        .eq('created_by', claims.sub);
+        .eq('created_by', auth.userId);
 
       if (projectsError) {
         return NextResponse.json(
@@ -311,7 +291,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
     const auth = await requireAuth(req);
     if (auth instanceof NextResponse) return auth;
 
-    const { claims, user } = auth;
+    const { account } = auth;
     const body = parseCreateApplicationInput(await req.json().catch(() => null));
 
     if (!body) {
@@ -352,11 +332,11 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
     const { data: existingUser } = await supabaseAdmin
       .from('users')
       .select('user_id')
-      .eq('user_id', user.id)
+      .eq('user_id', auth.userId)
       .maybeSingle();
 
     if (!existingUser) {
-      const meta = user.user_metadata ?? {};
+      const meta = account.user_metadata ?? {};
       const fullName = typeof meta.full_name === 'string'
         ? meta.full_name
         : typeof meta.name === 'string'
@@ -367,12 +347,12 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
       const lastName = nameParts.slice(1).join(' ');
 
       const { error: createUserError } = await supabaseAdmin.from('users').insert({
-        user_id: user.id,
+        user_id: auth.userId,
         first_name: firstName,
         last_name: lastName,
         date_of_birth: null,
-        personal_email: user.email ?? '',
-        active_login_email: user.email ?? '',
+        personal_email: account.email ?? '',
+        active_login_email: account.email ?? '',
         guardian_name: null,
         guardian_email: null,
         org_role_id: 1,
@@ -409,7 +389,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
       }
 
       const { error: createOnboardingError } = await supabaseAdmin.from('onboarding').insert({
-        user_id: user.id,
+        user_id: auth.userId,
         slack_connected: false,
         waiver_status: 'Not Started',
         parental_consent_status: 'Not Started',
@@ -426,7 +406,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
     const { count: pendingCount, error: pendingError } = await supabaseAdmin
       .from('applications')
       .select('application_id', { count: 'exact', head: true })
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .eq('status', 'Pending');
 
     if (pendingError) {
@@ -446,7 +426,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
     const { data: approvedApplications, error: approvedError } = await supabaseAdmin
       .from('applications')
       .select('application_id, project_id, status, projects!inner ( project_type_id )')
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .eq('status', 'Approved')
       .returns<RawUserApp[]>();
 
@@ -489,7 +469,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
     const { data: existingApplication, error: existingError } = await supabaseAdmin
       .from('applications')
       .select('application_id, status')
-      .eq('user_id', claims.sub)
+      .eq('user_id', auth.userId)
       .eq('project_id', body.project_id)
       .maybeSingle();
 
@@ -519,7 +499,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
     const { data: newApplication, error: insertError } = await supabaseAdmin
       .from('applications')
       .insert({
-        user_id: claims.sub,
+        user_id: auth.userId,
         project_id: body.project_id,
         status: 'Pending',
         why_join: body.why_join,
@@ -544,7 +524,7 @@ export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<A
 
     void supabaseAdmin.from('notifications').insert([
       {
-        user_id: claims.sub,
+        user_id: auth.userId,
         channel: 'InApp',
         event_type: 'Application Received',
         subject: 'Application Received',

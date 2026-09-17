@@ -22,6 +22,7 @@
  * `tsc` cannot see. Role defaults to 1 (Member), the least-privileged role.
  */
 import { NextResponse, type NextRequest } from 'next/server';
+import type { User } from '@supabase/supabase-js';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import type { ApiResponse, ErrorCode } from '@/types/api';
 import type { OrgRoleId } from '@/types/auth';
@@ -76,6 +77,30 @@ export function forbidden(
  * or query for the row themselves.
  */
 export async function authenticate(req: NextRequest): Promise<AuthedUser | null> {
+  const resolved = await authenticateWithAccount(req);
+  if (!resolved) return null;
+
+  return {
+    userId: resolved.userId,
+    orgRoleId: resolved.orgRoleId,
+    chapterId: resolved.chapterId,
+  };
+}
+
+/**
+ * An authenticated caller plus the raw Supabase Auth user.
+ *
+ * Only for routes that read the auth account's own fields — `email` and
+ * `user_metadata` — rather than just an identity. In practice that is
+ * provisioning a `public.users` row on a member's first application, where the
+ * name comes off the Google profile. Everywhere else, use authenticate(): the
+ * Supabase type is deliberately kept out of the common path.
+ */
+export type AuthedAccount = AuthedUser & { account: User };
+
+export async function authenticateWithAccount(
+  req: NextRequest,
+): Promise<AuthedAccount | null> {
   const authHeader = req.headers.get('authorization');
   if (!authHeader?.startsWith('Bearer ')) return null;
 
@@ -99,6 +124,7 @@ export async function authenticate(req: NextRequest): Promise<AuthedUser | null>
     userId: user.id,
     orgRoleId: roleRow?.org_role_id ?? 1,
     chapterId: roleRow?.chapter_id ?? null,
+    account: user,
   };
 }
 
