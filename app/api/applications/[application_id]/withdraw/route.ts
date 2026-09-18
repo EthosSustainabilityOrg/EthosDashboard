@@ -4,7 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Application } from '@/types/applications';
 
@@ -14,29 +14,8 @@ export async function PATCH(
 ): Promise<NextResponse<ApiResponse<Application>>> {
   try {
     // 1. Verify Auth
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } },
-        { status: 401 }
-      );
-    }
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
-    const claims = extractClaims(token);
-    if (!claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token payload' } },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
     const { application_id: applicationId } = await params;
 
@@ -55,7 +34,7 @@ export async function PATCH(
     }
 
     // 3. Enforce Scope: Applicant only
-    if (appData.user_id !== claims.sub) {
+    if (appData.user_id !== auth.userId) {
       return NextResponse.json(
         { data: null, error: { code: 'FORBIDDEN', message: 'You can only withdraw your own applications' } },
         { status: 403 }

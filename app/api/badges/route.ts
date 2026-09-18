@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { authenticate } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Badge, BadgeCategory } from '@/types/badges';
 
@@ -66,22 +66,8 @@ async function hydrateBadges(badges: Badge[]): Promise<BadgeListItem[]> {
 
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<BadgesResponse>>> {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } },
-        { status: 401 }
-      );
-    }
-
-    const auth = await authenticate(req);
-
-    if (!auth) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
     const { data: badges, error } = await supabaseAdmin
       .from('badges')
@@ -110,22 +96,8 @@ export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<Ba
 
 export async function POST(req: NextRequest): Promise<NextResponse<ApiResponse<Badge>>> {
   try {
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } },
-        { status: 401 }
-      );
-    }
-
-    const auth = await authenticate(req);
-
-    if (!auth) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
     const orgRoleId = auth.orgRoleId;
 

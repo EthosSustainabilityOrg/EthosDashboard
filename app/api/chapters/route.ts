@@ -4,6 +4,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAuth } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 
 type ChapterListItem = {
@@ -20,22 +21,8 @@ type ChaptersResponse = {
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<ChaptersResponse>>> {
   try {
     // 1. Verify Supabase JWT
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } },
-        { status: 401 }
-      );
-    }
-    const token = authHeader.split(' ')[1];
-    const { data: { user }, error: authError } = await supabaseAdmin.auth.getUser(token);
-    
-    if (authError || !user) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
     // 2. Fetch all chapters
     const { data, error } = await supabaseAdmin

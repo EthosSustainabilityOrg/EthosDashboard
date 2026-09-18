@@ -5,7 +5,7 @@
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { authenticate } from '@/lib/api-auth';
+import { requireAuth } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Task, TaskStatus } from '@/types/tasks';
 
@@ -114,22 +114,8 @@ export async function PATCH(
   try {
     const { task_id: taskId } = await params;
 
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } },
-        { status: 401 }
-      );
-    }
-
-    const auth = await authenticate(req);
-
-    if (!auth) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
     const body: unknown = await req.json().catch(() => null);
     if (!isPatchTaskInput(body)) {
@@ -249,22 +235,8 @@ export async function DELETE(
   try {
     const { task_id: taskId } = await params;
 
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } },
-        { status: 401 }
-      );
-    }
-
-    const auth = await authenticate(req);
-
-    if (!auth) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 }
-      );
-    }
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
     const task = await fetchTask(taskId);
     if (!task) {

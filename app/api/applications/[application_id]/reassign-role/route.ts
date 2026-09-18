@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
-import { extractClaims } from '@/lib/auth';
+import { requireAuth } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Application } from '@/types/applications';
 
@@ -40,35 +40,10 @@ export async function PATCH(
   try {
     const { application_id: applicationId } = await params;
 
-    const authHeader = req.headers.get('authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Missing or invalid authorization header' } },
-        { status: 401 },
-      );
-    }
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
 
-    const token = authHeader.split(' ')[1];
-    const {
-      data: { user },
-      error: authError,
-    } = await supabaseAdmin.auth.getUser(token);
-    const claims = extractClaims(token);
-
-    if (authError || !user || !claims?.sub) {
-      return NextResponse.json(
-        { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-        { status: 401 },
-      );
-    }
-
-    const { data: roleData } = await supabaseAdmin
-      .from('users')
-      .select('org_role_id')
-      .eq('user_id', claims.sub)
-      .maybeSingle();
-
-    const orgRoleId = roleData?.org_role_id ?? 1;
+    const orgRoleId = auth.orgRoleId;
 
     const body = parseInput(await req.json().catch(() => null));
     if (!body) {
@@ -116,7 +91,7 @@ export async function PATCH(
     const project = firstRow(application.projects);
 
     if (orgRoleId !== 3) {
-      if (orgRoleId !== 2 || project?.created_by !== claims.sub) {
+      if (orgRoleId !== 2 || project?.created_by !== auth.userId) {
         return NextResponse.json(
           { data: null, error: { code: 'FORBIDDEN', message: 'Cannot reassign roles for this project' } },
           { status: 403 },
@@ -162,7 +137,7 @@ export async function PATCH(
       .from('applications')
       .update({
         project_role_id: body.project_role_id,
-        reviewed_by: claims.sub,
+        reviewed_by: auth.userId,
         reviewed_at: new Date().toISOString(),
       })
       .eq('application_id', applicationId)
