@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
+import { requireAuth } from '@/lib/api-auth';
 import type { ApiResponse } from '@/types/api';
 import type { Announcement } from '@/types/announcements';
 
@@ -21,23 +22,14 @@ function parsePositiveInt(value: string | null, fallback: number, max: number): 
   return Math.min(parsed, max);
 }
 
-async function requireUser(req: NextRequest): Promise<boolean> {
-  const authHeader = req.headers.get('authorization');
-  if (!authHeader?.startsWith('Bearer ')) return false;
-
-  const token = authHeader.split(' ')[1];
-  const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
-  return !error && Boolean(user);
-}
-
 export async function GET(req: NextRequest): Promise<NextResponse<ApiResponse<AnnouncementsResponse>>> {
-  const isAuthenticated = await requireUser(req);
-  if (!isAuthenticated) {
-    return NextResponse.json(
-      { data: null, error: { code: 'UNAUTHORIZED', message: 'Invalid token' } },
-      { status: 401 }
-    );
-  }
+  // Any authenticated caller, deliberately. The RLS policy on this table is
+  // `announcements_select_authenticated ... USING (true)`, so the database grants
+  // read to every authenticated user, and the dashboard page reads through the
+  // anon client under that policy. Requiring a provisioned member here would make
+  // the API stricter than the database without actually hiding anything.
+  const auth = await requireAuth(req);
+  if (auth instanceof NextResponse) return auth;
 
   const page = parsePositiveInt(req.nextUrl.searchParams.get('page'), 1, 1000);
   const perPage = parsePositiveInt(req.nextUrl.searchParams.get('per_page'), 20, 100);
