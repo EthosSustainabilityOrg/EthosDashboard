@@ -61,12 +61,6 @@ export function unauthorized(
   return apiError('UNAUTHORIZED', message, 401);
 }
 
-export function forbidden(
-  message = 'You do not have access to this',
-): NextResponse<ApiResponse<never>> {
-  return apiError('FORBIDDEN', message, 403);
-}
-
 /**
  * Verifies the Bearer token and resolves the caller's role and chapter from the
  * database. Returns null when the token is missing, malformed, or rejected.
@@ -128,21 +122,36 @@ export async function authenticateWithAccount(
   };
 }
 
+/**
+ * The standard route prologue: verify the caller, or produce the 401 to return.
+ *
+ *   const auth = await requireAuth(req);
+ *   if (auth instanceof NextResponse) return auth;
+ *
+ * Distinguishes the two failure modes, which authenticate() alone cannot:
+ * a missing or malformed Authorization header, and a header that is present but
+ * carries a token the server rejects. Keeping those messages apart matters here —
+ * "Missing or invalid authorization header" is the exact diagnostic that surfaced
+ * the missing-auth-header bug class across about ten client components.
+ *
+ * Pass `missingHeaderMessage` only to preserve an existing route's wording.
+ */
+export async function requireAuth(
+  req: NextRequest,
+  missingHeaderMessage = 'Missing or invalid authorization header',
+): Promise<AuthedUser | NextResponse<ApiResponse<never>>> {
+  const authHeader = req.headers.get('authorization');
+  if (!authHeader?.startsWith('Bearer ')) return unauthorized(missingHeaderMessage);
+
+  const auth = await authenticate(req);
+  if (!auth) return unauthorized('Invalid token');
+
+  return auth;
+}
+
 /** Authenticated caller with Board access (org_role_id 3), or null. */
 export async function authenticateBoard(req: NextRequest): Promise<AuthedUser | null> {
   const auth = await authenticate(req);
   if (!auth || auth.orgRoleId !== 3) return null;
   return auth;
-}
-
-/** Authenticated caller with Project Lead or Board access (2 or 3), or null. */
-export async function authenticateLeadOrBoard(req: NextRequest): Promise<AuthedUser | null> {
-  const auth = await authenticate(req);
-  if (!auth || (auth.orgRoleId !== 2 && auth.orgRoleId !== 3)) return null;
-  return auth;
-}
-
-/** True when this caller is Board. Board has universal access, no restrictions. */
-export function isBoard(auth: AuthedUser): boolean {
-  return auth.orgRoleId === 3;
 }
