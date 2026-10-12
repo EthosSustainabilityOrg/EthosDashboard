@@ -37,6 +37,10 @@ type RoleDraft = {
 type DeleteTarget =
   | { type: 'shift'; id: string; label: string }
   | { type: 'role'; id: string; label: string }
+  // The project itself. Carries no id because it is always this project, and the
+  // confirm copy differs enough that it gets its own branch rather than a shared one.
+  | { type: 'project'; label: string }
+  | { type: 'close-project'; label: string }
   | null;
 
 type ApiResponse<T> = {
@@ -314,12 +318,54 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
   async function confirmDelete() {
     if (!deleteTarget) return;
 
+    setError(null);
+    const headers = await getAuthHeaders();
+
+    // Closing a project keeps the record and rejects pending applications. It is the
+    // right action for anything volunteers have engaged with, and the API refuses a
+    // delete in that case, so both live side by side here.
+    if (deleteTarget.type === 'close-project') {
+      const response = await fetch(`/api/projects/${project.project_id}/close`, {
+        method: 'POST',
+        headers,
+      });
+      const body = (await response.json()) as ApiResponse<{ project_id: string }>;
+
+      setDeleteTarget(null);
+
+      if (!response.ok || body.error) {
+        setError(body.error?.message ?? 'Unable to close this project.');
+        return;
+      }
+
+      router.push('/lead-projects');
+      return;
+    }
+
+    if (deleteTarget.type === 'project') {
+      const response = await fetch(`/api/projects/${project.project_id}`, {
+        method: 'DELETE',
+        headers,
+      });
+      const body = (await response.json()) as ApiResponse<{ deleted: boolean }>;
+
+      setDeleteTarget(null);
+
+      if (!response.ok || body.error) {
+        // A 409 here carries the reason, e.g. volunteers have applied, and tells the
+        // lead to close instead. Pass it through rather than flattening it.
+        setError(body.error?.message ?? 'Unable to delete this project.');
+        return;
+      }
+
+      router.push('/lead-projects');
+      return;
+    }
+
     const path =
       deleteTarget.type === 'shift'
         ? `/api/projects/${project.project_id}/shifts/${deleteTarget.id}`
         : `/api/projects/${project.project_id}/roles/${deleteTarget.id}`;
-
-    const headers = await getAuthHeaders();
 
     const response = await fetch(path, {
       method: 'DELETE',
@@ -342,6 +388,32 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
     setDeleteTarget(null);
     setMessage('Item removed.');
   }
+
+  const confirmCopy: { title: string; message: string; confirmLabel: string } = (() => {
+    if (deleteTarget?.type === 'close-project') {
+      return {
+        title: 'Close this project?',
+        message:
+          'Volunteers will no longer see it, and any pending applications are rejected and the applicants notified. The project and its history are kept.',
+        confirmLabel: 'Close project',
+      };
+    }
+
+    if (deleteTarget?.type === 'project') {
+      return {
+        title: 'Delete this project?',
+        message:
+          'This cannot be undone. Deleting only works while nothing has engaged with the project. If volunteers have applied, or tasks, updates or files exist, close it instead.',
+        confirmLabel: 'Delete permanently',
+      };
+    }
+
+    return {
+      title: 'Remove item?',
+      message: `This will remove ${deleteTarget?.label ?? 'this item'} from the project.`,
+      confirmLabel: 'Remove',
+    };
+  })();
 
   return (
     <div className="space-y-8">
@@ -543,6 +615,38 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
         </div>
       </section>
 
+      {project.closed_at === null ? (
+        <section className="rounded-2xl border border-red-200 bg-red-50/50 p-6">
+          <h2 className="text-lg font-semibold text-espresso">Danger zone</h2>
+          <p className="mt-1 text-sm text-warm-gray">
+            Closing keeps the project and its history. Deleting is only possible while
+            nothing has engaged with it.
+          </p>
+
+          <div className="mt-5 flex flex-col gap-3 sm:flex-row">
+            <Button
+              variant="secondary"
+              onClick={() => setDeleteTarget({ type: 'close-project', label: project.name })}
+            >
+              Close project
+            </Button>
+            <Button
+              variant="ghost"
+              onClick={() => setDeleteTarget({ type: 'project', label: project.name })}
+            >
+              Delete project
+            </Button>
+          </div>
+        </section>
+      ) : (
+        <section className="rounded-2xl border border-sand bg-cream p-6">
+          <h2 className="text-lg font-semibold text-espresso">This project is closed</h2>
+          <p className="mt-1 text-sm text-warm-gray">
+            It is kept as a record of what the chapter did and cannot be deleted.
+          </p>
+        </section>
+      )}
+
       {error ? <p className="text-sm text-red-600">{error}</p> : null}
       {message ? <p className="text-sm text-green-700">{message}</p> : null}
 
@@ -557,9 +661,9 @@ export function EditProjectForm({ project, shifts, roles }: EditProjectFormProps
 
       <ConfirmDialog
         isOpen={deleteTarget !== null}
-        title="Remove item?"
-        message={`This will remove ${deleteTarget?.label ?? 'this item'} from the project.`}
-        confirmLabel="Remove"
+        title={confirmCopy.title}
+        message={confirmCopy.message}
+        confirmLabel={confirmCopy.confirmLabel}
         confirmVariant="danger"
         onCancel={() => setDeleteTarget(null)}
         onConfirm={confirmDelete}

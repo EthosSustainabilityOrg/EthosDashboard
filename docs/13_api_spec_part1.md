@@ -416,6 +416,38 @@ Close a project.
 
 ---
 
+### DELETE /api/projects/:project_id
+Permanently delete a project that carries no history.
+**Auth:** Required. Project Lead (own) or Board (any). Same rule as close.
+**Request body:** none
+**Response:** `{ "project_id": "<uuid>", "deleted": true }`
+**Logic:**
+- Refuses unless the project has **zero** rows in all of: `applications`, `tasks`,
+  `project_updates`, `files`, `badges`, `volunteer_flags`. Shifts and project_roles are
+  configuration rather than history, so they may exist and cascade.
+- Refuses a project that is already closed. A closed project is the preserved record
+  and deleting it would discard what closing deliberately kept.
+- On refusal, the message names the blocking reason and directs the caller to close.
+
+**Why conditional rather than a plain delete:** the FK graph makes an unconditional
+delete destructive in ways that are invisible from the call site. `applications`,
+`tasks`, `shifts`, `project_roles`, `project_updates` and `files` are all
+`ON DELETE CASCADE`, so one delete erases every application, all assigned work, every
+shift signup and every posted update. `badges` is `ON DELETE SET NULL`, so an awarded
+badge survives but stops recording what it was earned for. Every member of this platform
+is a minor, and those rows are the participation record the org would need if a parent,
+a school or an auditor asked. Separately, `volunteer_flags.project_id` (migration 025)
+declares no `ON DELETE` clause, so it defaults to NO ACTION: a flagged project cannot be
+deleted at all and an unguarded route would surface Postgres error 23503 as a 500.
+
+The intended use is a Lead who created a project by mistake and wants it gone before
+anyone engaged with it. Everything else is closed, not deleted.
+
+**Errors:** UNAUTHORIZED, FORBIDDEN, NOT_FOUND, CONFLICT (project has history, or is
+already closed), VALIDATION_ERROR
+
+---
+
 ## Shift Endpoints
 
 ### POST /api/projects/:project_id/shifts

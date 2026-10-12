@@ -2,6 +2,7 @@
  * app/api/projects/[project_id]/route.ts
  * GET /api/projects/:project_id
  * PATCH /api/projects/:project_id
+ * DELETE /api/projects/:project_id
  */
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
@@ -376,6 +377,178 @@ export async function PATCH(
     });
 
   } catch (error) {
+    return NextResponse.json(
+      { data: null, error: { code: 'VALIDATION_ERROR', message: 'Internal Server Error' } },
+      { status: 500 }
+    );
+  }
+}
+
+/**
+ * DELETE /api/projects/:project_id
+ *
+ * Hard-deletes a project ONLY when it carries no history. Anything with history must be
+ * closed instead, via POST /api/projects/:project_id/close.
+ *
+ * WHY IT IS CONDITIONAL
+ * The FK graph makes an unconditional delete destructive in ways that are invisible from
+ * the call site. `applications`, `tasks`, `shifts`, `project_roles`, `project_updates`
+ * and `files` are all `ON DELETE CASCADE`, so one delete erases every application to the
+ * project, all assigned work, every shift signup and every posted update. `badges` is
+ * `ON DELETE SET NULL`, so an awarded badge survives but stops saying what it was earned
+ * for. On a platform whose members are all minors, those rows are the participation
+ * record the org would need if a parent, a school or an auditor asked.
+ *
+ * `volunteer_flags.project_id` (025) has no `ON DELETE` clause, so it defaults to
+ * NO ACTION. A flagged project cannot be deleted at all: Postgres raises 23503 and an
+ * unguarded route would return a 500. It is checked here so the caller gets a 409 that
+ * explains itself.
+ *
+ * Shifts and roles are configuration rather than history, so they may exist and are
+ * allowed to cascade. The real use case for delete is a Lead who created a project by
+ * mistake and wants it gone before anyone touched it.
+ */
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ project_id: string }> }
+): Promise<NextResponse<ApiResponse<{ project_id: string; deleted: true }>>> {
+  try {
+    // 1. Verify Auth
+    const auth = await requireAuth(req);
+    if (auth instanceof NextResponse) return auth;
+
+    const { project_id: projectId } = await params;
+
+    // 2. Fetch Project
+    const { data: existing, error: existingError } = await supabaseAdmin
+      .from('projects')
+      .select('name, created_by, closed_at')
+      .eq('project_id', projectId)
+      .maybeSingle();
+
+    if (existingError || !existing) {
+      return NextResponse.json(
+        { data: null, error: { code: 'NOT_FOUND', message: 'Project not found' } },
+        { status: 404 }
+      );
+    }
+
+    // 3. Enforce Scope: Board or (Project Lead AND created_by = self). Same rule as close.
+    const orgRoleId = auth.orgRoleId;
+
+    if (orgRoleId !== 3) {
+      if (orgRoleId !== 2 || existing.created_by !== auth.userId) {
+        return NextResponse.json(
+          { data: null, error: { code: 'FORBIDDEN', message: 'Cannot delete this project' } },
+          { status: 403 }
+        );
+      }
+    }
+
+    // 4. A closed project is already the preserved form. Deleting it would throw away
+    //    the record that closing deliberately kept.
+    if (existing.closed_at !== null) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: {
+            code: 'CONFLICT',
+            message: 'This project is closed. A closed project is kept as a record and cannot be deleted.',
+          },
+        },
+        { status: 409 }
+      );
+    }
+
+    // 5. History check. Each of these means somebody engaged with the project.
+    //    Fails closed: a count that errors or comes back null throws, so the outer catch
+    //    returns 500 and nothing is deleted. Reading it as 0 would let a transient error
+    //    cascade away every application and task on the project.
+    async function countRows(table: string): Promise<number> {
+      const { count, error } = await supabaseAdmin
+        .from(table)
+        .select('project_id', { count: 'exact', head: true })
+        .eq('project_id', projectId);
+
+      if (error || count === null) {
+        throw new Error(`History check failed on ${table}`);
+      }
+
+      return count;
+    }
+
+    const [
+      applicationCount,
+      taskCount,
+      updateCount,
+      fileCount,
+      badgeCount,
+      flagCount,
+    ] = await Promise.all([
+      countRows('applications'),
+      countRows('tasks'),
+      countRows('project_updates'),
+      countRows('files'),
+      countRows('badges'),
+      countRows('volunteer_flags'),
+    ]);
+
+    // Ordered so the message names the reason a person most needs to hear first.
+    const blockers: string[] = [];
+    if (applicationCount > 0) blockers.push('volunteers have applied');
+    if (flagCount > 0) blockers.push('it has volunteer flags against it');
+    if (badgeCount > 0) blockers.push('badges are tied to it');
+    if (taskCount > 0) blockers.push('it has tasks');
+    if (updateCount > 0) blockers.push('updates have been posted');
+    if (fileCount > 0) blockers.push('files are attached');
+
+    if (blockers.length > 0) {
+      return NextResponse.json(
+        {
+          data: null,
+          error: {
+            code: 'CONFLICT',
+            message: `This project cannot be deleted because ${blockers.join(', ')}. Close it instead to keep the record and reject any pending applications.`,
+          },
+        },
+        { status: 409 }
+      );
+    }
+
+    // 6. Delete. Shifts and project_roles cascade; nothing else is left to cascade.
+    const { error: deleteError } = await supabaseAdmin
+      .from('projects')
+      .delete()
+      .eq('project_id', projectId);
+
+    if (deleteError) {
+      // 23503 means a row referencing the project landed after the history check, e.g.
+      // a flag raised in between. Same answer as the history check, not a raw DB message.
+      if (deleteError.code === '23503') {
+        return NextResponse.json(
+          {
+            data: null,
+            error: {
+              code: 'CONFLICT',
+              message: 'This project cannot be deleted because it now has history. Close it instead to keep the record.',
+            },
+          },
+          { status: 409 }
+        );
+      }
+
+      return NextResponse.json(
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'This project could not be deleted.' } },
+        { status: 400 }
+      );
+    }
+
+    return NextResponse.json({
+      data: { project_id: projectId, deleted: true },
+      error: null,
+    });
+
+  } catch {
     return NextResponse.json(
       { data: null, error: { code: 'VALIDATION_ERROR', message: 'Internal Server Error' } },
       { status: 500 }
