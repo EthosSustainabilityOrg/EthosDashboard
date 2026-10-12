@@ -55,6 +55,26 @@ a PostgREST filter string: `chapter_id.eq.null` is invalid UUID syntax and retur
 `app/api/search/route.ts`, which both build a filter array and `unshift` the chapter
 clause only when a chapter is known.
 
+### A `chapter_id` query param is not automatically a permission
+Resolved 2026-10-04. Two routes take a `chapter_id` param and treat it differently, and
+that is deliberate. Judge a new one by what the param *does*, not by matching a
+precedent:
+
+- **It narrows within an already applied scope → accept it from anyone.**
+  `app/api/projects/route.ts` chains `.eq('chapter_id', param)` onto the role scoping
+  `.or(...)`, so the param can only shrink what the caller could already see. It cannot
+  reach another chapter's unpublished or non-open-call projects.
+- **It changes whose scope you get → Board only, 403 otherwise.**
+  `app/api/users/directory/route.ts` uses the param *in place of* the caller's own
+  chapter, so it widens access to other people's personal data. It returns 403 for any
+  non-Board caller that sends it at all.
+
+Before tightening `projects` to match `directory`, note that
+`components/onboarding/ProjectBoard.tsx` sends `chapter_id` **with** an Authorization
+header on behalf of a pre-approval volunteer whose role is 1 and whose chapter is null.
+Making that route Board-only 403s every new volunteer who picks a chapter, which kills
+the signup funnel at its most important page.
+
 ### Client-side auth headers
 Every client component that fetches `/api/` routes must send an Authorization header:
 ```typescript
@@ -198,8 +218,18 @@ from behavioral changes, so a real diff is never buried in noise.
   onboarding completion check is commented out in three places (the OpenSign webhook,
   the orientation-progress route, and the onboarding checklist UI). Uncomment all three
   together, or `completed_at` and the checklist will disagree about who is done.
-- OpenSign templates not created — waiver/consent flow not testable
-- Notification delivery not wired — records inserted, but no email/Slack sends
+- OpenSign templates not created — waiver/consent flow not testable. Separately, the
+  client and webhook are wrong against the real API in four places and the webhook does
+  not read `payload.event` at all, so `viewed` currently counts as `signed`. See
+  `docs/SESSION_STATE.md` Next priorities item 3 before touching either file
+- Notification delivery not wired — records inserted, but no email/Slack sends.
+  `lib/resend.ts` is correct against the real Resend API; it only needs a key and a
+  verified sending domain
+- No Privacy Policy or Terms pages exist, on a platform collecting guardian emails and
+  signed consent documents from minors
+- Project delete is conditional by design, not by omission — see
+  `docs/13_api_spec_part1.md:419`. Do not "fix" it into an unconditional delete:
+  `volunteer_flags` has no `ON DELETE` clause and six other FKs cascade
 
 ## Error message rules
 Never expose raw field names to users. Write "A title is required", not

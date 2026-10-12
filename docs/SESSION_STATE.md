@@ -358,7 +358,21 @@ Items that require a product decision, not a code fix. Do not guess at these —
 "Working Independently" in `CLAUDE.md`.
 
 ### chapter_id query param: inconsistent between projects and directory
-**Flagged:** 2026-09-08 (chapter_id claim audit). **Status:** open. **Not a safety bug.**
+**Flagged:** 2026-09-08 (chapter_id claim audit). **Resolved 2026-10-04: Option A.**
+**Not a safety bug.**
+
+**Decision: leave `projects` as-is.** The param is a permitted filter there and a
+Board-only capability on `directory`, and that difference is deliberate because the param
+does different things in the two routes: on `projects` it narrows within an already
+applied role scope, on `directory` it changes whose personal data you see.
+
+**A third reason surfaced while closing this out, which the original entry missed:**
+`components/onboarding/ProjectBoard.tsx:153` sends `chapter_id` **with** an Authorization
+header. That is the pre-approval project browser, used by a brand-new volunteer whose
+`org_role_id` is 1 and whose `chapter_id` is still null. Making `projects` Board-only
+would hand every new volunteer a 403 the moment they picked a chapter from the dropdown,
+and the signup funnel would die at its most important page. Option B is not merely
+costly, it is breaking.
 
 Two routes accept a `chapter_id` query param and treat it differently:
 
@@ -391,7 +405,31 @@ Whichever is chosen, record the rule in `CLAUDE.md` so the next route that takes
 chapter param does not have to re-litigate it.
 
 ### Project delete: not in the API spec, and `close` is the spec'd path
-**Flagged:** 2026-09-09. **Status:** open. **Blocks "Next priorities" item 1.**
+**Flagged:** 2026-09-09. **Resolved 2026-10-04: both, conditionally. Spec amended.**
+
+**Decision: a conditional delete plus a wired-up close.** `DELETE /api/projects/:project_id`
+now exists and is specified at `docs/13_api_spec_part1.md:419`, so the AGENTS.md rule
+against unspecified endpoints is satisfied. It hard-deletes **only** a project with zero
+rows in `applications`, `tasks`, `project_updates`, `files`, `badges` and
+`volunteer_flags`, and refuses an already-closed project. Everything else is closed.
+
+The schema is what forced the condition rather than preference. Six FKs to `projects` are
+`ON DELETE CASCADE` and `badges` is `ON DELETE SET NULL`, so an unconditional delete
+erases the participation record of minors and orphans awarded badges. And
+`volunteer_flags.project_id` (025) has no `ON DELETE` clause at all, so it defaults to
+NO ACTION: a flagged project cannot be deleted whatever the route wants, and an unguarded
+handler would have returned a 500 from Postgres 23503. Adding a cascade to the flags
+table was rejected: those are safety records.
+
+Both actions are now reachable from a Danger zone section in `EditProjectForm.tsx`, using
+the confirm dialog that was already there for shift and role removal. A closed project
+shows a "kept as a record" panel instead of the buttons. The orphaned `close` endpoint and
+the unreachable "Closed" badge in `LeadProjectCard.tsx:26` are both live as of this change.
+
+The original entry below is kept because its reasoning is still the reason the delete is
+conditional rather than plain.
+
+**Superseded status:** open. **Was blocking "Next priorities" item 1.**
 
 "Add project delete flow and `DELETE /api/projects/:id`" has been sitting at the top of
 Next priorities, but building it would violate `AGENTS.md` ("Do not create any API
@@ -430,12 +468,129 @@ Recommendation: Option A. It is already specified, already half-built, and rever
 the sense that a delete could still be added later on top of it. Option B should not be
 started without a spec amendment and an explicit product decision.
 
+## 2026-10-04 — Phase 0: mobile sidebar, wizard reconcile, project delete
+
+Three fixes that do not touch the chapter model, shipped ahead of it because the app is
+live. Plus `docs/14_chapter_model_plan.md`, which is proposed and unbuilt.
+
+### Mobile sidebar
+
+**What changed.** `components/layout/FullSidebarLayout.tsx`. The aside was a fixed
+`w-60` with no breakpoint, so a 375px phone gave 240px to the sidebar and 135px to the
+content. Every dashboard page was unusable on a phone regardless of its own classes, and
+the audience is 14 to 17 year olds. Below `md` it is now an off-canvas drawer with a top
+bar trigger, a backdrop, Escape to close, and close-on-navigation. At `md` and up the
+markup resolves back to the previous layout.
+
+**What was verified.** Playwright, real Tailwind output compiled from this project's
+`@theme`, measured at three viewports:
+
+| Viewport | aside | main | page scrollWidth |
+|---|---|---|---|
+| 375 closed | x=-240, `visibility: hidden` | x=0, w=375 | 375, no h-scroll |
+| 375 open | x=0, w=240 | x=0, w=375 | 375, no h-scroll |
+| 768 | x=0, w=240 | x=240, w=528 | 768 |
+| 1280 | x=0, w=240 | x=240, w=1040 | 1280 |
+
+Content width on a phone goes from 135px to 327px inside the page's own padding. Closed
+drawer is `visibility: hidden`, so keyboard users cannot tab into off-screen links.
+Desktop geometry is unchanged. `LockedSidebarLayout` was left alone: its `w-16` rail is
+fine on a phone.
+
+**Still open.** Closing in a `useEffect` on `[pathname]` trips
+`react-hooks/set-state-in-effect`, so the open state records the route it was opened on
+and closure is derived. Worth knowing before anyone "simplifies" it back.
+
+### Wizard child reconcile
+
+**What changed.** The duplication bug is fully fixed, and the previous guard was the
+cause. `CreateProjectWizard.tsx` tracked created shifts and roles by array index and
+cleared the whole set in `updateFormData` whenever the user touched either list, on the
+grounds that the indexes would no longer line up. Clearing traded misalignment for
+duplication, which is worse: three shifts, a failed publish, one edit, publish again, and
+the project held six shifts, three of them orphans with pre-edit values.
+
+Tracking is now `localId -> serverId`. `WizardShift` and `WizardRole` already carried a
+stable local `id`, so no new client key was needed. The reconcile moved to
+`lib/project-children-sync.ts` as a pure function with an injected `fetcher`, which is
+what makes it verifiable, and the wizard now calls it twice. Net about 120 lines out of
+the component.
+
+**What was verified.** The module was compiled and driven through six scenarios with a
+stubbed fetcher, 18 assertions, all passing:
+
+1. The original bug. Three shifts created, publish fails, user edits one, saves again:
+   3 POSTs then 3 PATCHes against the right server ids, and the edited value reaches the
+   server. Previously 6 POSTs.
+2. Mid-flight failure. The second of three POSTs fails: the map holds exactly the one
+   that landed, and the retry POSTs only the two missing and PATCHes the one that existed.
+3. Removal. A child dropped from the form is DELETEd, and deletes run before any write.
+4. A 409 on DELETE preserves the map entry so a retry cannot duplicate, and the message
+   is actionable.
+5. A create returning 200 with no id throws rather than silently forgetting the row.
+6. `validate()` runs before any request for that item.
+
+The drive script was not committed: there is no test runner in this repo and adding one
+is a larger decision. The module is pure and takes an injected fetcher specifically so
+the scenarios above can be re-driven in a few lines.
+
+### Project delete and close UI
+
+**What changed.** `DELETE /api/projects/:project_id` added to
+`app/api/projects/[project_id]/route.ts`, specified at `13_api_spec_part1.md:419` first
+so the AGENTS.md rule on unspecified endpoints holds. Conditional: it refuses unless the
+project has zero `applications`, `tasks`, `project_updates`, `files`, `badges` and
+`volunteer_flags`, and refuses an already-closed project. Scope matches `close` exactly,
+Board or the Lead who created it.
+
+A Danger zone in `EditProjectForm.tsx` exposes both Close and Delete, reusing the confirm
+dialog that was already there for shift and role removal, with per-branch copy. A closed
+project gets a "kept as a record" panel instead of the buttons.
+
+**What was verified.** Typecheck and column existence. All six counted tables were
+confirmed to have a `project_id` column by reading the migrations, and `supabaseAdmin`
+bypasses RLS so the counts are not subject to policy. **Not verified at runtime:** no
+request has been made against the live database, and the blocker branch in particular has
+never executed. That is owed.
+
+**Review fix, 2026-10-12, before first commit.** The history check originally read a
+failed count as `count ?? 0`, so any count query that errored passed the check and the
+delete cascaded through applications and tasks. It now fails closed: an error or a null
+count throws, the outer catch returns 500, and nothing is deleted. A `23503` from the
+delete itself (a flag raised between check and delete) now returns a 409 with plain copy
+instead of the raw Postgres message, per the error message rules. Verified by typecheck
+and the CLAUDE.md auth grep only; the fail-closed branch has not executed either. The
+check-then-delete is still not atomic: an application submitted in that window would
+cascade. Closing that needs a DB-side guard (trigger or RPC), which is a schema change
+and was not made.
+
+**Why conditional.** See the resolved "Project delete" entry under Needs Decision. Short
+version: six cascading FKs plus a `SET NULL` on badges means a plain delete erases minors'
+participation records, and `volunteer_flags` has no `ON DELETE` clause so a flagged
+project could not be deleted at all without a 500.
+
+### Chapter model plan
+
+`docs/14_chapter_model_plan.md`, proposed and unbuilt. Written against the five HQ
+documents in the Claude project, which are the source of truth over this repo's earlier
+planning docs. The short version is that the dashboard is project-centred and the
+organization is chapter-centred, with chapters currently a four-column scoping filter.
+
+Three decisions are already taken and recorded in the plan: officer positions carry real
+per-position permissions, the monthly requirement is one event **and** one fundraiser, and
+Faculty Advisors are deferred because `users.guardian_name` and `guardian_email` are
+`NOT NULL` and the consent gate would never let an adult finish onboarding.
+
+Two open decisions block Phase 1 and are now Next priorities item 1.
+
+---
+
 ## Known remaining issues
 
-- Project delete is not implemented, and is not in the API spec — see "Needs Decision"
-- `POST /api/projects/:project_id/close` is built but has **zero UI callers** — the spec'd way to retire a project is unreachable from the app
-- Wizard shift/role child POSTs **already check `res.ok` and throw** — the old "failures can still be swallowed" note was stale. The real bug was duplicate children on retry, fixed 2026-09-09; one edge case remains, see below
-- Wizard: editing shifts/roles *after* a partial create still duplicates them on retry. The created-index tracking is deliberately cleared on edit, because the alternative (keeping it) would silently drop the user's edit instead. A full fix needs PATCH/DELETE of already-created children, which is a larger change
+- ✅ Project delete implemented 2026-10-04, conditional, and specified at `13_api_spec_part1.md:419` — see "Needs Decision"
+- ✅ `close` is wired 2026-10-04 via the Danger zone in `EditProjectForm.tsx` — no longer an orphaned endpoint
+- ✅ Wizard child duplication fully fixed 2026-10-04. The index-based tracking is gone; see "Wizard child reconcile" below
+- Wizard delete edge case: removing a shift whose start time has already passed is refused by the shifts route with a 409, which blocks the whole save. Reachable by adding a past-dated shift, saving, then removing it. The reconcile keeps its map entry so nothing duplicates, and the message tells the lead to add it back and remove it from the project page instead. Not fixed because preventing it means validating shift start times against now, which is a product rule nobody has set
 - Notification delivery not wired (records inserted, no email/Slack sends triggered)
 - OpenSign webhook header name unverified against real OpenSign docs
 - `@dnd-kit` not installed (kanban drag deferred)
@@ -446,12 +601,13 @@ started without a spec amendment and an explicit product decision.
 
 ## Next priorities
 
-1. Decide project retirement: wire up the existing `close` endpoint, or amend the spec for a real delete — see "Needs Decision"
-2. Wizard: handle edits to already-created shifts/roles (PATCH/DELETE existing children instead of clearing the created-index tracking)
-3. Wire notification delivery (records exist, no sends)
-4. Test full onboarding flow end to end
-5. Test project creation wizard shifts/roles saving
-6. OpenSign webhook verification (unverified header)
+1. Decide the two Phase 1 blockers in `docs/14_chapter_model_plan.md`: who reviews a chapter role request, and what `Standalone` actually changes in the approval code. Phase 1 of the chapter model cannot start without them
+2. Resend setup: account, verified sending domain, `RESEND_API_KEY` and `RESEND_FROM_ADDRESS` in Vercel. The client in `lib/resend.ts` is already correct against the real API, so this is setup only and it unblocks every notification path
+3. OpenSign code corrections, all confirmed against the real docs: `lib/opensign.ts` uses the wrong base URL and `Authorization: Bearer` instead of `x-api-token`; the webhook route reads `x-opensign-signature` instead of `x-webhook-signature`; both document-id extractors omit `objectId`. **And the webhook never reads `payload.event`**, so once the header and id fixes land, a guardian merely *viewing* the consent email fires `viewed`, matches `parental_consent_doc_id`, and sets `parental_consent_status = 'Signed'` plus `completed_at`. A minor's onboarding would unlock because their parent opened an email. The event gate must land in the same commit as the extractor fix
+4. Privacy Policy and Terms pages. `find app -iname "*privacy*" -o -iname "*terms*"` returns nothing, on a platform collecting guardian emails and signed consent documents from minors. Routes and layout can be built; the text needs qualified review
+5. Responsive pass on the remaining pages. The sidebar is fixed; the components are in better shape than first assumed (28 responsive `grid-cols` against 2 unprefixed), so this is smaller than it looked
+6. Runtime verification as Member and Lead. Everything so far is Board-only plus typecheck, and all three recurring bug classes in this repo are invisible to the compiler
+7. Test full onboarding flow end to end
 
 ## Manual setup still needed
 
