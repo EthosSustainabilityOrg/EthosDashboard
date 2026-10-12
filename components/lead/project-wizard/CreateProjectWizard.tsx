@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createBrowserClient } from '@supabase/ssr';
+import { reconcileChildren } from '@/lib/project-children-sync';
 import type { ApiResponse } from '@/types/api';
 import type { Chapter } from '@/types/chapters';
 import type { Project, ProjectType } from '@/types/projects';
@@ -100,13 +101,23 @@ export function CreateProjectWizard({
     ...createEmptyFormData(chapters),
     chapter_id: currentChapterId || chapters[0]?.chapter_id || '',
   }));
-  // Indexes of shifts/roles already created on the server for the current
-  // projectId. Save Draft and Publish both reuse an existing projectId on retry,
-  // so without this a retry after a mid-flight failure re-POSTs the children that
-  // already succeeded and the project ends up with duplicates. Cleared whenever
-  // the user edits shifts or roles, since the indexes would no longer line up.
-  const createdShiftIndexes = useRef<Set<number>>(new Set());
-  const createdRoleIndexes = useRef<Set<number>>(new Set());
+  // Maps a wizard-local shift/role id to the row id the server assigned it, for the
+  // current projectId.
+  //
+  // WHY THIS IS A MAP AND NOT A SET OF INDEXES
+  // Save Draft and Publish both reuse an existing projectId on retry, so something has
+  // to remember which children already exist or a retry re-POSTs them. The previous
+  // version tracked array indexes and cleared the whole set whenever the user touched
+  // shifts or roles, on the grounds that the indexes would no longer line up. Clearing
+  // traded misalignment for duplication, which is worse: fill in three shifts, fail at
+  // publish, go back and fix one shift's end time, publish again, and all three POST a
+  // second time. The project ends up with six shifts, three of them orphans holding the
+  // pre-edit values.
+  //
+  // Keying on the stable local id instead means an edit is an edit. Children the server
+  // already has get PATCHed, new ones get POSTed, and ones the user deleted get DELETEd.
+  const createdShiftIds = useRef<Map<string, string>>(new Map());
+  const createdRoleIds = useRef<Map<string, string>>(new Map());
 
   const [readinessChecked, setReadinessChecked] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -123,8 +134,8 @@ export function CreateProjectWizard({
   );
 
   function updateFormData(update: Partial<WizardFormData>) {
-    if (update.shifts) createdShiftIndexes.current = new Set();
-    if (update.roles) createdRoleIndexes.current = new Set();
+    // Deliberately does not reset the id maps. An edit to shifts or roles is
+    // reconciled on the next save, not re-created from scratch.
     setFormData((current) => ({ ...current, ...update }));
   }
 
@@ -197,66 +208,47 @@ export function CreateProjectWizard({
     return body.data.project_id;
   }
 
-  async function createProjectChildren(nextProjectId: string) {
+  /**
+   * Brings the server's shifts and roles in line with what the wizard holds.
+   * See lib/project-children-sync.ts for the reconcile rules and why they live there.
+   */
+  async function syncProjectChildren(nextProjectId: string) {
     const headers = await getAuthHeaders();
 
-    // Create shifts
-    for (const [index, shift] of formData.shifts.entries()) {
-      if (createdShiftIndexes.current.has(index)) continue;
-
-      if (shift.end_datetime <= shift.start_datetime) {
-        throw new Error('End time must be after start time');
-      }
-
-      const res = await fetch(
-        `/api/projects/${nextProjectId}/shifts`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            start_datetime: shift.start_datetime,
-            end_datetime: shift.end_datetime,
-            location: shift.location || null,
-            capacity: Number(shift.capacity),
-            notes: shift.notes || null,
-          }),
+    await reconcileChildren<WizardShift>({
+      items: formData.shifts,
+      known: createdShiftIds.current,
+      collectionUrl: `/api/projects/${nextProjectId}/shifts`,
+      serverIdField: 'shift_id',
+      noun: 'shift',
+      headers,
+      validate: (shift) => {
+        if (shift.end_datetime <= shift.start_datetime) {
+          throw new Error('End time must be after start time');
         }
-      );
-      if (!res.ok) {
-        const body = (await res.json()) as ApiResponse<unknown>;
-        throw new Error(
-          body?.error?.message ?? 'Failed to create shift'
-        );
-      }
+      },
+      toPayload: (shift) => ({
+        start_datetime: shift.start_datetime,
+        end_datetime: shift.end_datetime,
+        location: shift.location || null,
+        capacity: Number(shift.capacity),
+        notes: shift.notes || null,
+      }),
+    });
 
-      createdShiftIndexes.current.add(index);
-    }
-
-    // Create roles
-    for (const [index, role] of formData.roles.entries()) {
-      if (createdRoleIndexes.current.has(index)) continue;
-
-      const res = await fetch(
-        `/api/projects/${nextProjectId}/roles`,
-        {
-          method: 'POST',
-          headers,
-          body: JSON.stringify({
-            role_name: role.role_name,
-            description: role.description || null,
-            capacity: Number(role.capacity),
-          }),
-        }
-      );
-      if (!res.ok) {
-        const body = (await res.json()) as ApiResponse<unknown>;
-        throw new Error(
-          body?.error?.message ?? 'Failed to create role'
-        );
-      }
-
-      createdRoleIndexes.current.add(index);
-    }
+    await reconcileChildren<WizardRole>({
+      items: formData.roles,
+      known: createdRoleIds.current,
+      collectionUrl: `/api/projects/${nextProjectId}/roles`,
+      serverIdField: 'project_role_id',
+      noun: 'role',
+      headers,
+      toPayload: (role) => ({
+        role_name: role.role_name,
+        description: role.description || null,
+        capacity: Number(role.capacity),
+      }),
+    });
   }
 
   async function saveDraft() {
@@ -265,7 +257,7 @@ export function CreateProjectWizard({
 
     try {
       const nextProjectId = projectId ?? await createDraftProject();
-      await createProjectChildren(nextProjectId);
+      await syncProjectChildren(nextProjectId);
       router.push('/lead-projects');
     } catch (error) {
       setPublishError(error instanceof Error ? error.message : 'Could not save this project.');
@@ -279,7 +271,7 @@ export function CreateProjectWizard({
 
     try {
       const nextProjectId = projectId ?? await createDraftProject();
-      await createProjectChildren(nextProjectId);
+      await syncProjectChildren(nextProjectId);
 
       const headers = await getAuthHeaders();
       const response = await fetch(`/api/projects/${nextProjectId}/publish`, {
