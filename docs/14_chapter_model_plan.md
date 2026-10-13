@@ -469,6 +469,12 @@ that means a President reviews their own succession, and a chapter with no Presi
 nobody. Proposal: HQ reviews anything with `wants_chapter_lead`, the President reviews
 the rest, and HQ is the fallback when the seat is vacant. Needs confirmation.
 
+**Decided 2026-10-12: Board approves every role request**, chapter head and every other
+officer seat alike. This removes both problems above: no President reviews their own
+succession, and a chapter with no President is never left without a reviewer. The cost
+is Board review load, which grows with the number of chapters. Reviewer is Board
+(`org_role_id = 3`), checked by DB lookup, never a JWT claim.
+
 **3. Does the 3-active-project cap survive?**
 It is currently enforced at approval. In a chapter-centred model, is a member capped on
 chapter activities, on HQ projects, on both, or neither?
@@ -478,6 +484,19 @@ The word implies managing their own funds. Concretely: do their proposals stop n
 HQ approval, or only their budgets? Do fund requests disappear or just default to
 denied-with-fundraise? Does the monthly obligation still apply? This is the difference
 between a status badge and a real branch in the approval code.
+
+Not a Phase 1 blocker: Phase 1 only adds the `status` column. The behaviour lands in
+Phase 2 (proposals) and Phase 3 (fund requests), so it must be answered before Phase 2.
+Options, recorded 2026-10-12, still undecided:
+
+- **A. Budget autonomy only.** Event proposals still need Board approval, because that
+  review is also a safety check on events involving minors (location, supervision).
+  Budget lines paid from the chapter's own funds need no HQ sign-off. Fund requests to
+  HQ still go to Board. Monthly obligation still applies. Smallest branch in the code.
+- **B. Full autonomy.** Proposals are auto-approved and Board is notified. Reports and
+  the monthly obligation still apply. Removes the event safety review for those chapters.
+- **C. Badge only for now.** `Standalone` changes nothing in code until a real need
+  appears. Cheapest, but the status then means nothing in the app.
 
 **5. Officer terms and the academic year.**
 Do terms auto-expire on a date? What does a chapter with no sitting President look like
