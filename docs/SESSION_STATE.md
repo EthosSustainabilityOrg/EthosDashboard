@@ -596,7 +596,7 @@ Two open decisions block Phase 1 and are now Next priorities item 1.
 - `@dnd-kit` not installed (kanban drag deferred)
 - `types/supabase-ssr.d.ts` shim still present (real package installed on Vercel, shim only affects local dev)
 - The API auth consolidation is unverified at runtime — typecheck and inspection only. A Board/Lead/Member click-through of the live deployment is owed
-- The two HQ project rules are enforced only at application submission, not at approval, so the same staleness hole the 3-active-project fix closed still exists for them
+- ✅ HQ project rules now also enforced at approval, 2026-10-17. `PATCH /api/applications/:id/approve` refuses (409 `CONFLICT`) if the volunteer already holds an active HQ project, or if the target is HQ and they hold any active project. `isHqProjectType` moved to `lib/project-types.ts`, shared with `POST /api/applications`. A missing project type on the target counts as HQ, so the check fails closed. Verified by typecheck and the auth grep only; no approval has been run against the live DB for any of the three branches. Not atomic, same as the 3-project check: two Leads approving at the same instant could both pass
 - ~60 files show as modified with CRLF-only line-ending churn and zero content change (`git diff --ignore-cr-at-eol` is empty repo-wide); `core.autocrlf` is unset on the Windows machine. Not committed. Worth a `.gitattributes` decision rather than letting it ride
 
 ## Next priorities

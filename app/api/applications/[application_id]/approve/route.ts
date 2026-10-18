@@ -8,6 +8,7 @@ import { requireAuth } from '@/lib/api-auth';
 import { inviteToChannel } from '@/lib/slack';
 import { unlockOnboardingIfApproved } from '@/lib/onboarding';
 import { deliverNotification } from '@/lib/notifications';
+import { isHqProjectType } from '@/lib/project-types';
 import type { ApiResponse } from '@/types/api';
 import type { Application } from '@/types/applications';
 
@@ -32,7 +33,7 @@ export async function PATCH(
         user_id,
         project_id,
         status,
-        projects ( created_by, slack_channel_id ),
+        projects ( created_by, slack_channel_id, project_type_id ),
         users!applications_user_id_fkey ( slack_user_id )
       `)
       .eq('application_id', applicationId)
@@ -66,27 +67,51 @@ export async function PATCH(
       );
     }
 
-    // 4b. Enforce the 3-active-project limit at approval time.
-    // AGENTS.md specifies this rule belongs here. POST /api/applications also
-    // checks it, but that check is stale by the time a Lead approves: a member
-    // may hold several pending applications that each passed independently when
-    // submitted, and approving them all would take the member past the limit.
-    const { count: activeCount, error: activeError } = await supabaseAdmin
+    // 4b. Enforce the 3-active-project limit and the HQ rules at approval time.
+    // AGENTS.md specifies the limit belongs here. POST /api/applications also
+    // checks all three, but those checks are stale by the time a Lead approves: a
+    // member may hold several pending applications that each passed independently
+    // when submitted, and approving them all would break the rules.
+    const { data: activeApps, error: activeError } = await supabaseAdmin
       .from('applications')
-      .select('application_id', { count: 'exact', head: true })
+      .select('application_id, projects!inner ( project_type_id )')
       .eq('user_id', appData.user_id)
       .eq('status', 'Approved');
 
-    if (activeError) {
+    if (activeError || !activeApps) {
       return NextResponse.json(
-        { data: null, error: { code: 'VALIDATION_ERROR', message: activeError.message } },
+        { data: null, error: { code: 'VALIDATION_ERROR', message: 'Could not check this volunteer\'s active projects' } },
         { status: 400 }
       );
     }
 
-    if ((activeCount ?? 0) >= 3) {
+    if (activeApps.length >= 3) {
       return NextResponse.json(
         { data: null, error: { code: 'LIMIT_REACHED', message: 'This volunteer already has 3 active projects' } },
+        { status: 409 }
+      );
+    }
+
+    // HQ: an HQ project must be the member's only active project (02_roles_and_permissions.md).
+    // Fails closed: a missing project type is treated as HQ, so approval is refused rather
+    // than letting the rule be skipped.
+    const targetTypeId = projectRow?.project_type_id;
+    const targetIsHq = typeof targetTypeId !== 'number' || isHqProjectType(targetTypeId);
+    const hasActiveHqProject = activeApps.some((app) => {
+      const project = Array.isArray(app.projects) ? app.projects[0] : app.projects;
+      return project ? isHqProjectType(project.project_type_id) : false;
+    });
+
+    if (hasActiveHqProject) {
+      return NextResponse.json(
+        { data: null, error: { code: 'CONFLICT', message: 'This volunteer is on an HQ project, which must be their only active project' } },
+        { status: 409 }
+      );
+    }
+
+    if (targetIsHq && activeApps.length > 0) {
+      return NextResponse.json(
+        { data: null, error: { code: 'CONFLICT', message: 'An HQ project must be this volunteer\'s only active project, and they already have an active project' } },
         { status: 409 }
       );
     }
