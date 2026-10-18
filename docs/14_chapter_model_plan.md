@@ -71,14 +71,15 @@ Existing columns stay. Add:
 | `school_name` | `VARCHAR(200)` | the host high school or college, null for HQ |
 | `status` | `VARCHAR(20)` | `Prospective`, `Launching`, `Active`, `Standalone`, `Inactive`, `Closed` |
 | `launched_at` | `TIMESTAMP` | null until the launch event happens |
-| `standalone_at` | `TIMESTAMP` | null until HQ grants fund autonomy |
+| `standalone_at` | `TIMESTAMP` | null until HQ marks the chapter Standalone; a label only, gates no behaviour |
 | `renewal_due_on` | `DATE` | drives the renewal reminder |
 
 `status` is the chapter lifecycle the Technical Director described: HQ supports a new
 chapter, then it becomes standalone and manages its own funds, while still able to
 request HQ funds that HQ may deny with a fundraising task instead.
 
-`Standalone` is not only a badge. See open decision 4 for what it changes behaviourally.
+`Standalone` is a lifecycle label with no behavioural branch: every chapter may fundraise
+for its own budget, report-only. See open decision 4, decided 2026-10-18.
 
 ### New: `chapter_positions`
 
@@ -487,18 +488,33 @@ HQ approval, or only their budgets? Do fund requests disappear or just default t
 denied-with-fundraise? Does the monthly obligation still apply? This is the difference
 between a status badge and a real branch in the approval code.
 
-Not a Phase 1 blocker: Phase 1 only adds the `status` column. The behaviour lands in
-Phase 2 (proposals) and Phase 3 (fund requests), so it must be answered before Phase 2.
-Options, recorded 2026-10-12, still undecided:
+**Decided 2026-10-18 (Technical Director).** The money rules apply to every chapter, not
+only Standalone ones:
 
-- **A. Budget autonomy only.** Event proposals still need Board approval, because that
-  review is also a safety check on events involving minors (location, supervision).
-  Budget lines paid from the chapter's own funds need no HQ sign-off. Fund requests to
-  HQ still go to Board. Monthly obligation still applies. Smallest branch in the code.
-- **B. Full autonomy.** Proposals are auto-approved and Board is notified. Reports and
-  the monthly obligation still apply. Removes the event safety review for those chapters.
-- **C. Badge only for now.** `Standalone` changes nothing in code until a real need
-  appears. Cheapest, but the status then means nothing in the app.
+- **Every chapter may fundraise for its own budget.** Money raised is reported to HQ and
+  shown on the dashboard. Spending from that budget is **report-only**: no HQ approval.
+- **HQ money needs Board approval.** A chapter that wants HQ to supply funds files a fund
+  request; Board approves, denies, or denies with a fundraising task.
+- **Events always need HQ approval**, whatever pays for them. That review is also the
+  safety check on activities involving minors, and `docs/org/01_overview.md` requires it.
+- **The monthly obligation still applies** to every chapter.
+
+**Consequence: `Standalone` has no behavioural branch.** It is a lifecycle label for how
+established a chapter is, nothing more. The options considered (budget autonomy only for
+Standalone, full autonomy, badge only) collapse to "badge only", because the one thing
+Standalone would have unlocked, self-raised budgets, is available to every chapter.
+
+**Divergence from the HQ docs.** `docs/org/01_overview.md` says all budgets are approved
+by HQ and all funds go to the HQ account. Self-raised, report-only budgets override the
+first half the same way the one-event-and-one-fundraiser rule overrides the training
+guide. Where the money physically sits does not matter to the app: it tracks budgets, it
+does not hold funds. This override belongs in the gaps list in `docs/org/00_index.md`.
+
+**What this adds to the schema, not yet designed:** a per-chapter budget ledger, income
+from fundraisers and spending entries, visible on the dashboard and to HQ. Neither
+`chapter_fund_requests` nor `proposal_budget_items` covers it. Proposal budget lines
+paid from the chapter's own budget are informational; only lines asking for HQ money
+need a decision, via a fund request. Belongs in Phase 3 alongside fund requests.
 
 **5. Officer terms and the academic year.**
 Do terms auto-expire on a date? What does a chapter with no sitting President look like
