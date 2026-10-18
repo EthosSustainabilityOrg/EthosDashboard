@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { supabaseAdmin } from '@/lib/supabase-admin';
 import { authenticateWithAccount, type AuthedAccount } from '@/lib/api-auth';
+import { isHqProjectType } from '@/lib/project-types';
 import type { ApiResponse } from '@/types/api';
 import type { Application, ApplicationStatus } from '@/types/applications';
 
@@ -71,10 +72,6 @@ function firstRow<T>(value: T | T[] | null | undefined) {
 
 function isApplicationStatus(value: string): value is ApplicationStatus {
   return applicationStatuses.includes(value as ApplicationStatus);
-}
-
-function isHqProjectType(projectTypeId: number) {
-  return projectTypeId >= 10 && projectTypeId <= 16;
 }
 
 function parsePositiveInteger(value: string | null, fallback: number, max: number) {
