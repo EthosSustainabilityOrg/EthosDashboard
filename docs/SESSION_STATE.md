@@ -572,8 +572,9 @@ project could not be deleted at all without a 500.
 ### Chapter model plan
 
 `docs/14_chapter_model_plan.md`, proposed and unbuilt. Written against the five HQ
-documents in the Claude project, which are the source of truth over this repo's earlier
-planning docs. The short version is that the dashboard is project-centred and the
+documents, which are the source of truth over this repo's earlier planning docs. Those
+five were only reachable through one person's Claude project until 2026-10-18; verbatim
+copies now live in `docs/org/`. The short version is that the dashboard is project-centred and the
 organization is chapter-centred, with chapters currently a four-column scoping filter.
 
 Three decisions are already taken and recorded in the plan: officer positions carry real

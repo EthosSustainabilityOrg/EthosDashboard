@@ -20,12 +20,14 @@ Projects are one of the things a chapter does, not the unit of organization.
 The model is inverted relative to reality. This plan corrects it additively.
 
 Source of truth for the org model is the HQ document set, not this repo's earlier
-planning docs, which drifted:
+planning docs, which drifted. Verbatim copies now live in `docs/org/`, with
+`docs/org/00_index.md` as the way in:
 
-- Ethos Sustainability Overview
-- Officer Roles & Responsibilities
-- Chapter Lead Training Guide
-- Chapter Lead Training — Combined Meeting 1 & 2
+- `docs/org/01_overview.md` — Ethos Sustainability Overview
+- `docs/org/02_officer_roles.md` — Officer Roles & Responsibilities
+- `docs/org/03_chapter_lead_training_guide.md` — Chapter Lead Training Guide
+- `docs/org/04_chapter_lead_training_meeting_1_2.md` — Chapter Lead Training, Combined Meeting 1 & 2
+- `docs/org/05_brand_guidelines.md` — Brand Guidelines, Chapter Version
 
 Where those documents and the Technical Director's direction disagree, the direction
 wins and the documents get updated. Two such cases are recorded in "Decisions taken"

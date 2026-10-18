@@ -12,6 +12,29 @@ before inferring anything the spec would have covered.
 
 This file adds the deployment lessons and patterns discovered in production.
 
+## The org model lives in docs/org/
+
+`docs/org/` holds verbatim copies of the five HQ governance documents: the org overview,
+officer roles, the two chapter-lead training docs, and the brand guidelines. They describe
+how Ethos Sustainability actually works, and they are **the source of truth for the
+organization model**.
+
+They outrank this repo's own planning docs. `docs/01_product_overview.md` through
+`docs/12_security.md` were written earlier and drifted: they describe a project-centred
+system, and the org is chapter-centred. Where the two disagree, `docs/org/` wins.
+
+Read `docs/org/00_index.md` first. It lists what each document settles, records the two
+places where the Technical Director has overridden them, and names the divergences already
+found between the brand doc and the code.
+
+Read the relevant `docs/org/` file before writing anything that touches chapters,
+officers, members, approvals, budgets, reporting, or the visual design. Do not infer the
+org model from the existing schema: `chapters` is currently a four-column scoping filter
+and the schema is what `docs/14_chapter_model_plan.md` exists to correct.
+
+Do not edit `docs/org/` except to replace a file wholesale with a newer HQ version. They
+are copies, and editing one silently forks it from what HQ maintains.
+
 ## Critical patterns — follow these exactly
 
 ### JWT custom claims do NOT work
